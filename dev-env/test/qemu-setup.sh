@@ -30,6 +30,10 @@ exec /bin/sh
 EOF
 chmod +x "$INITRAMFS_DIR/init"
 
+mkdir -p /tmp/initramfs/lib64
+cp /lib64/libc.so.6 /tmp/initramfs/lib64/
+cp /lib64/ld-linux-x86-64.so.2 /tmp/initramfs/lib64/
+
 cd "$INITRAMFS_DIR"
 find . | cpio -o -H newc | gzip > "$INITRAMFS_IMG"
 echo "[*] initramfs built: $INITRAMFS_IMG"
@@ -37,12 +41,19 @@ echo "[*] initramfs built: $INITRAMFS_IMG"
 # ── 2. Build modules disk image ───────────────────────────────────────────────
 echo "[*] Building modules disk image..."
 
+
+# helloguys.ko
 dd if=/dev/zero of="$MODULES_IMG" bs=1M count=10 2>/dev/null
 mkfs.ext2 -F "$MODULES_IMG" > /dev/null
+
+# simplefs
+dd if=/dev/zero of=/tmp/simplefs-test.img bs=1M count=50
 
 mkdir -p "$MODULES_MNT"
 mount -o loop "$MODULES_IMG" "$MODULES_MNT"
 cp /workspace/src/*.ko "$MODULES_MNT/"
+cp /workspace/src2-simplefs/simplefs/*.ko "$MODULES_MNT/"
+cp /workspace/src2-simplefs/simplefs/mkfs.simplefs "$MODULES_MNT/"
 umount "$MODULES_MNT"
 echo "[*] Modules copied to disk image"
 echo "[*] Modules available:"
@@ -64,4 +75,6 @@ qemu-system-x86_64 \
     -initrd "$INITRAMFS_IMG" \
     -append "console=ttyS0 quiet" \
     -nographic \
-    -drive file="$MODULES_IMG",format=raw,if=ide
+    -drive file="$MODULES_IMG",format=raw,if=ide \
+    -drive file=/tmp/simplefs-test.img,format=raw,if=ide
+

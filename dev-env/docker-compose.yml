@@ -8,6 +8,7 @@ services:
     volumes:
       - ./src:/workspace/src
       - ./test:/workspace/test
+      - ./src2-simplefs:/workspace/src2-simplefs
     devices:
       - /dev/kvm:/dev/kvm
     privileged: true
