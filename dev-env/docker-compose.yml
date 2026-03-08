@@ -1,0 +1,17 @@
+services:
+  kernel-dev:
+    build:
+      context: .
+      args:
+        KERNEL_VERSION: "6.8.5-301.fc40.x86_64"
+    image: kernel-dev:fc40
+    volumes:
+      - ./src:/workspace/src
+      - ./test:/workspace/test
+    devices:
+      - /dev/kvm:/dev/kvm
+    privileged: true
+    stdin_open: true
+    tty: true
+    environment:
+      - KERNEL_VERSION=6.8.5-301.fc40.x86_64
