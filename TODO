@@ -1,0 +1,30 @@
+dosya yeni oluşturulmuş olsa bile tarihini 1970 olarak vermiş, gerçek örnek:
+/vcfs # echo "test1" > testdirectory/testfile
+/vcfs # cat testdirectory/testfile 
+test1
+/vcfs # vcfs log testdirectory/testfile 
+Versiyon Geçmişi: testdirectory/testfile
+------------------------------------------------------
+Versiyon ID | Tarih               | Sıkıştırılmış mı?
+------------------------------------------------------
+v0          | 1970-01-01 00:00:00 | Hayır
+/vcfs # echo "test2" > testdirectory/testfile 
+/vcfs # vcfs log testdirectory/testfile 
+Versiyon Geçmişi: testdirectory/testfile
+------------------------------------------------------
+Versiyon ID | Tarih               | Sıkıştırılmış mı?
+------------------------------------------------------
+v1          | 2026-05-29 11:02:43 | Hayır
+v0          | 1970-01-01 00:00:00 | Hayır
+/vcfs # 
+
+
+
+eski bir versiyona geçildiğinde bunu yeni bir version olarak kaydediyor...
+
+
+
+var olan qemu içerisinde rm yok?
+/vcfs # rm
+/bin/sh: rm: not found
+/vcfs # 

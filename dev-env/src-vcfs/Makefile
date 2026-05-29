@@ -8,7 +8,7 @@ MKFS = mkfs.vcfs
 CC ?= gcc
 
 all: $(MKFS)
-	make -C $(KDIR) M=$(PWD) modules
+	make -C $(KDIR) M=$(CURDIR) modules
 
 IMAGE ?= test.img
 IMAGESIZE ?= 200

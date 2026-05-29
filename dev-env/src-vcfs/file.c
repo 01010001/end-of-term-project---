@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/mpage.h>
 
+#include "bitmap.h"
 #include "vcfs.h"
 #include "../vcfs-daemon/vcfs_ioctl.h"
 
@@ -331,7 +332,7 @@ static int vcfs_write_end(struct file *file,
 
     mark_inode_dirty(inode);
 
-    /* If file is smaller than before, free unused blocks */
+    /* Check if file is smaller than before, free unused blocks */
     if (nr_blocks_old > inode->i_blocks) {
         int i;
         struct buffer_head *bh_index;

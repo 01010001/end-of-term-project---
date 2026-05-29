@@ -26,26 +26,24 @@ Inside the Docker container, you can use the provided script to automatically bu
 ## Running the Components in QEMU
 
 Once the QEMU VM boots, you will be dropped into a root shell. 
-The compiled components are already placed in `/mnt` (mapped to `/dev/sda`).
+The compiled components are already placed directly into your PATH and `/root` directory inside the RAM disk.
 
 ### 1. Mounting the File System
 
-First, insert the kernel module, format the secondary disk, and mount the file system:
+First, insert the kernel module, format the test disk, and mount the file system:
 
 ```bash
-# Mount the tools directory
-mount /dev/sda /mnt
+cd /root
 
 # Insert the VCFS kernel module
-insmod /mnt/vcfs.ko
+insmod vcfs.ko
 
-# Format the test disk with VCFS
-/mnt/mkfs.vcfs /dev/sdb
+# Format the test disk with VCFS (QEMU maps it to /dev/sda)
+mkfs.vcfs /dev/sda
 
 # Mount the filesystem
-mkdir -p /vcfs
-mount -o loop -t vcfs /dev/sdb /vcfs
-cd /vcfs
+mount -o loop -t vcfs /dev/sda /mnt
+cd /mnt
 ```
 
 ### 2. Starting the Optimization Daemon
@@ -54,10 +52,10 @@ The User-Space Daemon periodically scans the file system and performs Delta Comp
 
 ```bash
 # Start the daemon in the background
-/mnt/vcfsd /vcfs &
+vcfsd /mnt &
 
 # Check logs
-cat /var/log/messages
+dmesg
 ```
 
 ### 3. Using the CLI
@@ -66,16 +64,16 @@ You can use the CLI tool to manage versions and the trash mechanism.
 
 ```bash
 # Check version status of a file
-/mnt/vcfs status file.txt
+vcfs status file.txt
 
 # View version history
-/mnt/vcfs log file.txt
+vcfs log file.txt
 
 # Checkout a previous version
-/mnt/vcfs checkout file.txt <version_id>
+vcfs checkout file.txt <version_id>
 
 # Restore a deleted file from trash
-/mnt/vcfs restore file.txt
+vcfs restore file.txt
 ```
 
 ### 4. Running the Native GUI
