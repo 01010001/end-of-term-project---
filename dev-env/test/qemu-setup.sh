@@ -46,27 +46,43 @@ echo "[*] Building modules disk image..."
 dd if=/dev/zero of="$MODULES_IMG" bs=1M count=10 2>/dev/null
 mkfs.ext2 -F "$MODULES_IMG" > /dev/null
 
-# simplefs
-dd if=/dev/zero of=/tmp/simplefs-test.img bs=1M count=50
+# simplefs / vcfs test image
+dd if=/dev/zero of=/tmp/vcfs-test.img bs=1M count=50
 
 mkdir -p "$MODULES_MNT"
 mount -o loop "$MODULES_IMG" "$MODULES_MNT"
-cp /workspace/src/*.ko "$MODULES_MNT/"
-cp /workspace/src2-simplefs/simplefs/*.ko "$MODULES_MNT/"
-cp /workspace/src2-simplefs/simplefs/mkfs.simplefs "$MODULES_MNT/"
+
+# compile and copy vcfs
+if [ -d "/workspace/src-vcfs" ]; then
+    make -C /workspace/src-vcfs
+    cp /workspace/src-vcfs/*.ko "$MODULES_MNT/"
+    cp /workspace/src-vcfs/mkfs.vcfs "$MODULES_MNT/"
+fi
+
+# compile and copy cli
+if [ -d "/workspace/vcfs-cli" ]; then
+    make -C /workspace/vcfs-cli
+    cp /workspace/vcfs-cli/vcfs "$MODULES_MNT/"
+fi
+
+# compile and copy daemon
+if [ -d "/workspace/vcfs-daemon" ]; then
+    make -C /workspace/vcfs-daemon
+    cp /workspace/vcfs-daemon/vcfsd "$MODULES_MNT/"
+fi
+
 umount "$MODULES_MNT"
 echo "[*] Modules copied to disk image"
-echo "[*] Modules available:"
-ls /workspace/src/*.ko
 
 # ── 3. Boot QEMU ──────────────────────────────────────────────────────────────
 echo ""
 echo "[*] Booting QEMU..."
 echo "[*] Inside the VM, run:"
 echo "      mount /dev/sda /mnt"
-echo "      insmod /mnt/helloguys.ko"
-echo "      dmesg"
-echo "      rmmod helloguys"
+echo "      insmod /mnt/vcfs.ko"
+echo "      /mnt/mkfs.vcfs /dev/sdb"
+echo "      mkdir -p /vcfs"
+echo "      mount -o loop -t vcfs /dev/sdb /vcfs"
 echo ""
 
 qemu-system-x86_64 \
@@ -76,5 +92,5 @@ qemu-system-x86_64 \
     -append "console=ttyS0 quiet" \
     -nographic \
     -drive file="$MODULES_IMG",format=raw,if=ide \
-    -drive file=/tmp/simplefs-test.img,format=raw,if=ide
+    -drive file=/tmp/vcfs-test.img,format=raw,if=ide
 

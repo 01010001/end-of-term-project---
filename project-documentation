@@ -1,0 +1,681 @@
+T.C. 
+SAKARYA UYGULAMALI BİLİMLER ÜNİVERSİTESİ 
+TEKNOLOJİ FAKÜLTESİ
+BİLGİSAYAR MÜHENDİSLİĞİ BÖLÜMÜ
+
+
+
+
+
+
+
+
+LINUX İŞLETİM SİSTEMLERİ İÇİN DOSYA BAZINDA VERSİYON KONTROLÜNE SAHİP DOSYA SİSTEMİ
+
+
+
+
+
+
+Bilgisayar Mühendisliği Tasarımı Raporu
+
+22010903050 Ahmet İP
+
+
+
+
+
+
+Danışmanı	:	Dr. Öğr. Üyesi Muhammed Telçeken  
+
+
+
+
+
+
+
+Ocak 2026  
+T.C. 
+SAKARYA UYGULAMALI BİLİMLER ÜNİVERSİTESİ 
+TEKNOLOJİ FAKÜLTESİ
+BİLGİSAYAR MÜHENDİSLİĞİ BÖLÜMÜ
+
+
+
+
+
+
+
+LINUX İŞLETİM SİSTEMLERİ İÇİN DOSYA BAZINDA VERSİYON KONTROLÜNE SAHİP DOSYA SİSTEMİ
+
+
+
+
+
+
+Bilgisayar Mühendisliği Tasarımı Raporu
+
+22010903050 Ahmet İP
+
+
+
+
+
+
+Danışmanı	:	Dr. Öğr. Üyesi Muhammed Telçeken  	Doç. Dr. 
+
+
+Bu rapor 00.00.2026 tarihinde aşağıdaki jüri tarafından oybirliği / oyçokluğu ile kabul edilmiştir.
+		
+
+
+
+		
+Danışman	Üye	Üye
+ 
+
+
+
+BEYAN
+
+
+Rapor içindeki tüm verilerin akademik kurallar çerçevesinde tarafımdan elde edildiğini, görsel ve yazılı tüm bilgi ve sonuçların akademik ve etik kurallara uygun şekilde sunulduğunu, kullanılan verilerde herhangi bir tahrifat yapılmadığını, başkalarının eserlerinden yararlanılması durumunda bilimsel normlara uygun olarak atıfta bulunulduğunu, raporda yer alan verilerin bu üniversite veya başka bir üniversitede herhangi bir çalışmada kullanılmadığını beyan ederim.
+
+
+
+Ahmet İP
+15.01.2026 
+
+
+ 
+TEŞEKKÜR
+
+
+Bu tez çalışmasının planlanması ve yürütülmesi sürecindeki değerli rehberliği ve katkıları için danışman hocam Muhammed Telçeken’e teşekkür ederim.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+İÇİNDEKİLER
+
+TEŞEKKÜR……………	i
+İÇİNDEKİLER……………	ii
+SİMGELER VE KISALTMALAR LİSTESİ	iv
+ŞEKİLLER LİSTESİ	v
+TABLOLAR LİSTESİ	vi
+ÖZET…………………….	vii
+
+BÖLÜM 1.	
+GİRİŞ………………	8
+
+BÖLÜM 2.	
+ÖNCEKİ ÇALIŞMALARIN ARAŞTIRILMASI	10
+2.1.	Linux Virtual File System (VFS)	10
+2.2.	Versiyon Kontrol Sistemleri	12
+2.2.1.	Git………….	12
+2.3.	Versiyon Kontrol Mekanizmalarına Sahip Linux Dosya Sistemleri	13
+2.4.	Versiyon Kontrol Sistemlerinde Arayüz Yaklaşımları	15
+2.4.1.	CLI Arayüzler	16
+2.4.2.	GUI Arayüzler ve Görselleştirme Stratejileri	17
+
+BÖLÜM 3.	
+YÖNTEM VE TASARIM	19
+3.1.	Materyal	19
+3.2.	Linux Dosya Sistemi Mimarisi ve VFS Yapısı	19
+3.2.1.	VFS Temel Veri Yapıları	19
+3.2.2.	VFS Operasyon Fonksiyonları	21
+3.3.	Git Versiyon Kontrol Mekanizması ve Adaptasyonu	22
+3.3.1.	Git'in Temel Çalışma Prensibi	22
+3.3.2.	Linear Versiyonlama Modeli	23
+3.3.3.	Delta Compression ve Deduplication	23
+3.4.	Versiyon Kontrol Dosya Sistemi Tasarımı ve VFS Entegrasyonu	24
+3.4.1.	Mimari Genel Bakış	24
+3.4.2.	Disk Üzerinde Depolama Yapısı	25
+3.4.3.	Versiyon Metadata Yönetimi	26
+3.4.4.	Kernel Modülü İmplementasyonu	27
+3.4.5.	Copy-on-Write Mekanizması	28
+3.4.6.	Versiyon Geçişleri ve Checkout	28
+3.4.7.	Çöp Kutusu (Trash) Mekanizması	29
+3.4.8.	Performans Optimizasyonları	29
+3.5.	Komut Satırı Arayüzü (CLI) Tasarımı	30
+3.5.1.	Temel Komut Mimarisi	30
+3.5.2.	Temel Fonksiyonlar	30
+3.5.3.	Gelişmiş Özellikler	31
+3.6.	Grafik Kullanıcı Arayüzü (GUI) Tasarımı	31
+3.6.1.	Ana Uygulama Penceresi	32
+3.6.1.1.	Versiyon Timeline Görünümü	32
+3.6.1.2.	Karşılaştırma ve Diff Görünümü	33
+3.6.1.3.	Versiyon Restore İşlemi	33
+3.6.2.	Çöp Kutusu Yönetimi	33
+
+BÖLÜM 4.	
+TARTIŞMA VE SONUÇ	35
+
+KAYNAKLAR………..	36
+EK: STANDARTLAR VE KISITLAR FORMU	40
+ÖZGEÇMİŞ…………	42
+ 
+SİMGELER VE KISALTMALAR LİSTESİ
+
+
+API
+FUSE	: Application Programming Interface
+:  Filesystem in Userspace
+Git	: Global Information Tracker
+GNU	: GNU’s Not Unix
+Kernel	: Çekirdek
+LKM	: Loadable Kernel Module
+POSIX	: Portable Operating System Interfaces for uniX
+VCFS	: Version Control File System
+VFS	: Virtual file system
+ 
+
+ŞEKİLLER LİSTESİ
+
+
+Şekil 1 Virtual file system mimarisi	4
+Şekil 2 Inode yapıları	13
+Şekil 3 GUI tasarımı mockup	26
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+TABLOLAR LİSTESİ
+
+
+Tablo 1 Versiyon Kontrol Özellikli Dosya Sistemlerinin Karşılaştırılması	8
+Tablo 2 VCFS CLI komut seti	24
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ÖZET
+
+
+Dijital verilerin saklanması sürecinde dosyaların yanlışlıkla silinmesi veya üzerine yazılması, Linux tabanlı işletim sistemlerinde standart bir geri alma mekanizmasının eksikliği nedeniyle kritik veri kayıplarına yol açmaktadır. Mevcut versiyon kontrol araçlarının (Git vb.) teknik uzmanlık gerektirmesi ve dosya sistemi seviyesindeki eski çözümlerin karmaşıklığı, son kullanıcılar için şeffaf ve erişilebilir bir çözüm ihtiyacını doğurmuştur. Bu tez çalışması, versiyon kontrolünü dosya sistemi seviyesinde uygulayarak, kullanıcıların ek teknik bilgiye ihtiyaç duymadan veri güvenliğini sağlamalarını amaçlayan Version Control File System (VCFS) mimarisini ve tasarımını sunmaktadır.
+
+Çalışmada, Git versiyon kontrol sisteminin performans odaklı anlık görüntü (snapshot) ve içerik adresleme yaklaşımlarından esinlenilmiş, ancak dosya sistemi kullanımı için basitleştirilmiş lineer bir versiyonlama modeli benimsenmiştir. Linux Kernel 6.x sürümü üzerinde çalışan bir çekirdek modülü olarak tasarlanan VCFS, Linux Sanal Dosya Sistemi (VFS) ile doğrudan entegre çalışmaktadır. Veri depolama yöntemi olarak blok tabanlı "Kopyala-Yaz" (Copy-on-Write) mekanizması ve inode seviyesinde bağlı liste yapısı kullanılarak depolama verimliliği hedeflenmiştir.
+
+Tasarım; çekirdek seviyesindeki modülün yanı sıra, sıkıştırma ve tekilleştirme işlemlerini yürüten bir kullanıcı alanı (user-space) servisi, POSIX uyumlu bir komut satırı arayüzü (CLI) ve teknik olmayan kullanıcılar için modern bir grafik kullanıcı arayüzü (GUI) içermektedir. Sonuç olarak, VCFS tasarımı ile Linux kullanıcılarına dosya bazında geçmiş versiyonlara erişim ve silinen dosyaları kurtarma imkanı sunularak, işletim sistemi seviyesinde güvenilir bir hata telafi mekanizması geliştirilmiştir.
+
+
+ 
+ABSTRACT
+
+
+Dijital verilerin saklanması sürecinde dosyaların yanlışlıkla silinmesi veya üzerine yazılması, Linux tabanlı işletim sistemlerinde standart bir geri alma mekanizmasının eksikliği nedeniyle kritik veri kayıplarına yol açmaktadır. Mevcut versiyon kontrol araçlarının (Git vb.) teknik uzmanlık gerektirmesi ve dosya sistemi seviyesindeki eski çözümlerin karmaşıklığı, son kullanıcılar için şeffaf ve erişilebilir bir çözüm ihtiyacını doğurmuştur. Bu tez çalışması, versiyon kontrolünü dosya sistemi seviyesinde uygulayarak, kullanıcıların ek teknik bilgiye ihtiyaç duymadan veri güvenliğini sağlamalarını amaçlayan Version Control File System (VCFS) mimarisini ve tasarımını sunmaktadır.
+
+Çalışmada, Git versiyon kontrol sisteminin performans odaklı anlık görüntü (snapshot) ve içerik adresleme yaklaşımlarından esinlenilmiş, ancak dosya sistemi kullanımı için basitleştirilmiş lineer bir versiyonlama modeli benimsenmiştir. Linux Kernel 6.x sürümü üzerinde çalışan bir çekirdek modülü olarak tasarlanan VCFS, Linux Sanal Dosya Sistemi (VFS) ile doğrudan entegre çalışmaktadır. Veri depolama yöntemi olarak blok tabanlı "Kopyala-Yaz" (Copy-on-Write) mekanizması ve inode seviyesinde bağlı liste yapısı kullanılarak depolama verimliliği hedeflenmiştir.
+
+Tasarım; çekirdek seviyesindeki modülün yanı sıra, sıkıştırma ve tekilleştirme işlemlerini yürüten bir kullanıcı alanı (user-space) servisi, POSIX uyumlu bir komut satırı arayüzü (CLI) ve teknik olmayan kullanıcılar için modern bir grafik kullanıcı arayüzü (GUI) içermektedir. Sonuç olarak, VCFS tasarımı ile Linux kullanıcılarına dosya bazında geçmiş versiyonlara erişim ve silinen dosyaları kurtarma imkanı sunularak, işletim sistemi seviyesinde güvenilir bir hata telafi mekanizması geliştirilmiştir.
+
+ 
+ 
+BÖLÜM 1.	GİRİŞ
+
+
+Dijital verilerin bütünlüğünün korunması temel bir gerekliliktir. Ancak kullanıcı hataları veya sistem kaynaklı sorunlar nedeniyle dosyaların silinmesi, üzerine yazılması ya da istenmeyen değişikliklere uğraması veri kaybına yol açabilmektedir. Birçok çalışma sürecinde kullanıcıların yalnızca son kaydedilen veriye değil, dosyanın geçmiş durumlarına da erişme ihtiyacı bulunabilmektedir. Standart Linux dosya sistemi yapılarında silinen dosyaların kurtarılması veya mevcut bir dosyanın önceki versiyonlarına dönülmesi için yerleşik ve otomatik bir mekanizma bulunmamaktadır. Bu durum özellikle tez veya tasarım dosyası gibi süreç odaklı ve kritik veriler üzerinde çalışan kullanıcılar için risk oluşturur. Mevcut versiyon kontrol araçları ise çoğunlukla yazılım geliştirme süreçlerine odaklandığından son kullanıcılar için karmaşık bir yapıya sahiptir. Ayrıca bu araçların kurulum ve yapılandırma süreçleri teknik uzmanlık gerektirebilir. Bu çalışma versiyonlama işlemini dosya sistemi seviyesinde şeffaf bir hale getirmeyi hedeflemektedir. Böylece kullanıcılar ek bir teknik bilgiye ihtiyaç duymadan dosyalarının geçmiş sürümlerine erişebilir, hatalarını telafi edebilir ve veri güvenliği sağlanmış olur.
+Standart Linux dağıtımlarında günlük kullanım sırasında bir dosyanın önceki versiyonlarına doğrudan erişmeyi sağlayan bütünleşik bir sistem yer almaz. Windows veya macOS gibi işletim sistemlerinde yaygın olan çöp kutusu mekanizması Linux tarafından özellikle komut satırı veya sunucu ortamlarında standart bir özellik olarak sunulmamaktadır. Örneğin bir hesap tablosu üzerinde çalışan kullanıcı hatalı bir kaydetme işlemi sonucunda verisini kaybedebilir. Eğer kullanılan uygulama kendi içinde bir yedekleme özelliği barındırmıyorsa dosyanın eski haline dönmek mümkün olmaz. Benzer şekilde yapılandırma dosyalarını yöneten bir kullanıcı da yanlış bir değişiklik yaptığında eski ayarlara dönmekte zorluk yaşayabilir. Dosya silindiğinde veya üzerine yazıldığında veriye erişim standart yöntemlerle sağlanamaz.
+Literatürde bu probleme teknik çözüm üretebilecek dosya sistemleri bulunmaktadır. Ancak bu sistemler genellikle birden fazla özelliği aynı yapı altında sunmaya çalıştıkları için karmaşık bir mimariye sahiptir. Bu karmaşıklık sistemlerin kararlılığını ve tutarlılığını olumsuz etkileyebilir. Ayrıca bakım zorlukları ve mantıksal hata riskleri bu tür sistemlerin yaygınlaşmasını engellemektedir (Lu, 2013). Bu nedenle daha sade ve sadece versiyon kontrolüne odaklanan bir çözüme ihtiyaç duyulmaktadır.
+Bu çalışmada yaygın versiyon kontrol sistemlerinin çalışma mantığından esinlenilerek yeni bir dosya sistemi geliştirilmiştir. Git mimarisindeki karmaşık yapılar bu tasarımda sadeleştirilerek kullanılmıştır. Sistemde içerik adresleme yerine inode numarası üzerinden ilerleyen düz bir versiyon zinciri oluşturulmuştur. Version Control File System (VCFS) adını verdiğimiz bu yapı Linux Kernel 6.x üzerinde çalışan bir çekirdek modülü olarak tasarlanmıştır. Sistem performansını korumak adına hibrit bir mimari tercih edilmiştir. Dosya yazma gibi hızlı olması gereken işlemler çekirdek seviyesinde kalırken işlemciyi yoran sıkıştırma görevleri arka planda çalışan bir daemon’a bırakılmıştır. Her dosyanın geçmişi doğrudan kendi inode yapısı içinde saklanır ve bu sayede verilere hızlıca ulaşılır. Depolama verimliliği sağlamak için blok tabanlı Copy-on-Write tekniği kullanılmıştır. Bu teknik sayesinde sadece değişen veri blokları için yeni disk alanı harcanır ve değişmeyen kısımlar ortak kullanılır. Sistemin yönetimi için teknik kullanıcılara yönelik POSIX uyumlu bir komut satırı arayüzü tasarlanmıştır. Bu arayüz sayesinde mevcut Linux araçları ve otomasyon betikleriyle tam uyum sağlanır. Teknik olmayan kullanıcılar için ise Qt altyapısı kullanılarak geliştirilen modern bir grafik arayüz sunulmuştur. Bu uygulama dosyaların tarihçesini görsel bir zaman çizelgesi üzerinde göstererek geçmişe dönüşü kolaylaştırır. Geliştirilen bu sistem disk bölümü odaklı çalışan mevcut çözümlerden dosya bazında hassas kontrol yeteneğiyle ayrılır. Kullanıcının manuel işlem yapmasına gerek kalmadan her dosya kaydında otomatik sürüm oluşturulur. Ayrıca çekirdek seviyesine entegre edilen çöp kutusu mekanizması sayesinde silinen dosyalara erişim imkanı sunularak tam veri güvenliği hedeflenmiştir.
+
+ 
+
+
+
+BÖLÜM 2.	ÖNCEKİ ÇALIŞMALARIN ARAŞTIRILMASI
+
+2.1. 	Linux Virtual File System (VFS)
+
+Virtual File System, Linux çekirdeğinin en kritik bileşenlerinden biri olup, farklı dosya sistemlerinin ortak bir arayüz üzerinden çalışmasını sağlayan bir soyutlama katmanıdır. Sun Microsystems bünyesinde geliştirilen "Vnodes" mimarisinde, farklı dosya sistemlerinin aynı anda kullanılabilmesi için sisteme özgü operasyonların standart bir arayüz arkasına gizlenmesi gerektiği ortaya konulmuştur (Kleiman, 1986). Bu konsept, daha önce işletim sistemlerinin tek bir dosya sistemine sıkı sıkıya bağlı olduğu Unix dünyasında devrim niteliğinde bir yenilik olmuştur.
+
+Linux tarafındaki VFS implementasyonu, inode, dentry, superblock ve file gibi temel veri yapılarının kullanımıyla detaylandırılmıştır (Gooch, Richard, 1993). Daha sonra yapılan çalışmalarda, VFS'nin Linux çekirdeğindeki yapısı incelenmiş ve yeni dosya sistemi geliştiricileri için minimal bir referans şablonu sunularak, operasyon yapılarının (operation structures) nasıl tanımlanması gerektiği açıklanmıştır (French, 2006). Linux çekirdeği sürekli gelişen dinamik bir yapıya sahip olsa da, VFS katmanının temel mimari prensipleri ve nesne hiyerarşisi modern çekirdek sürümlerinde (5.x ve 6.x serileri) de geçerliliğini korumaktadır (Billimoria, 2024).
+
+VFS, dosya sistemi operasyonlarını standart bir arayüze indirgeyerek ext4, XFS, Btrfs gibi farklı dosya sistemlerinin aynı çekirdek üzerinde sorunsuz çalışmasını sağlar. (Love, 2010), "Linux Kernel Development" eserinde VFS mimarisini oluşturan dört temel nesne türünü şu şekilde sınıflandırmıştır:
+ 
+Şekil 1 Virtual file system mimarisi
+
+Superblock: Dosya sisteminin genel bilgilerini (toplam boyut, blok boyutu, durumu) tutar. Her mount edilen dosya sistemi için bellekte bir örneği oluşturulur.
+Inode: Dosyaların metadata bilgilerini (boyut, sahiplik, izinler, zaman damgaları) saklar ancak dosyanın ismini içermez.
+Dentry (Directory Entry): Dosya isimlerini inode numaralarıyla eşleştirir ve dizin hiyerarşisini oluşturur. Path resolution hızlandırmak için bellekte "dentry cache" tutulur.
+File: Açık dosyaları temsil eder ve her process’in hangi dosyaları hangi modda (okuma, yazma) açtığını takip eder.
+
+Bu katmanlı mimari sayesinde, yeni dosya sistemi özellikleri eklemek için sadece VFS arayüzü ile uyumlu kod yazmak yeterlidir. Çekirdek, bir kullanıcı uygulaması dosya sistemi üzerinde işlem yaptığında, VFS katmanı üzerinden ilgili dosya sisteminin callback fonksiyonunu tetikler. Bu yönlendirme indirection mekanizması, çekirdek kodunun dosya sistemi detaylarından bağımsız kalmasını sağlar.
+2.2. 	Versiyon Kontrol Sistemleri
+
+Versiyon kontrol sistemlerinin evrimi, veri saklama yöntemleri açısından iki ana döneme ayrılmaktadır. İlk jenerasyon sistemler (RCS), dosyalar arasındaki farkları (delta) saklayarak disk alanından tasarruf etmeyi amaçlamış, ancak versiyonlar arası geçişlerde hesaplama maliyeti (reconstruction overhead) yaratmıştır (Tichy, 1985). İkinci nesil merkezi sistemler (SVN), atomik kayıt desteğiyle veri bütünlüğünü artırmış olsa da temel veri saklama mantığını korumuştur (Pilato, Collins-Sussman ve Fitzpatrick, 2008). Modern standartları belirleyen Git mimarisi ise, farklar yerine projenin anlık görüntülerini (snapshot) saklayan ve veriyi içerik özetleri (SHA-1) üzerinden adresleyen bir model sunmaktadır (Chacon ve Straub, 2014). VCFS tasarımı, Git'in sunduğu bu performans odaklı nesne modelini ve snapshot yaklaşımını temel alarak çekirdek seviyesinde dosya bazlı sürüm takibi yapmaktadır.
+
+2.2.1.	Git
+
+Git, 2005 yılında Linux kernel’inin geliştirilmesine yardımcı olması için oluşturulmuş, hız ve veri bütünlüğünü ön planda tutan bir versiyon kontrol sistemidir. Sistemin tasarımcısı, Git'in sadece bir VCS değil, aynı zamanda kullanıcı alanında çalışan "içerik adreslemeli bir dosya sistemi" (content-addressable file system) olduğunu belirtmiştir (Torvalds, 2005). Bu mimari tercih, Git'i dosya sistemi seviyesinde versiyonlama yapan tasarımlar için ideal bir referans haline getirmektedir.
+
+Git'in temel çalışma prensibi, dosyaları isimleri veya konumları yerine içeriklerinden üretilen kriptografik özetler (hash) ile tanımlamaya dayanır. Her nesne, içeriğinin SHA-1 hash değeri ile kimliklendirilir; bu sayede veri bütünlüğü matematiksel olarak garanti altına alınır (Loeliger ve McCullough, 2012). Bu yapı aynı zamanda doğal bir content-based deduplication (içerik tabanlı tekilleştirme) sağlar. Aynı içeriğe sahip iki dosya, dosya sisteminde farklı isimlerle bulunsa bile, Git veritabanında aynı blob nesnesine işaret eder ve disk üzerinde sadece bir kopya saklanır.
+
+Veri modeli; blob, tree, commit ve tag olmak üzere dört temel nesne tipinden oluşur. Blob nesneleri dosya içeriğini (meta-veri olmadan) saklarken, tree nesneleri dizin yapısını ve dosya isimlerini tutarak blob'ları birbirine bağlar.
+
+Git'in depolama yaklaşımı, geleneksel sistemlerin kullandığı delta-based (fark tabanlı) yöntemden köklü bir şekilde ayrılır. Git, her commit işleminde projenin o anki durumunun tam bir anlık görüntüsünü (snapshot) alır (Chacon ve Straub, 2014). Delta-based sistemler bir versiyonu oluşturmak için geçmişe doğru farkları hesaplamak zorundayken, Git'in snapshot modeli her versiyona O(1) karmaşıklığıyla (sabit sürede) erişim sağlar. Bu özellik, özellikle dosya sistemi seviyesinde hızlı okuma/yazma performansı gerektiren tasarımlar için kritik bir avantajdır.
+
+Depolama verimliliğini artırmak amacıyla Git, arka planda "packfile" mekanizmasını kullanır. Mantıksal olarak her versiyon tam bir snapshot olsa da, fiziksel depolamada benzer nesneler arasındaki farklar sıkıştırılarak saklanır. Bu hibrit yapı, snapshot modelinin hız avantajını korurken disk kullanımını minimize eder.
+2.3. 	Versiyon Kontrol Mekanizmalarına Sahip Linux Dosya Sistemleri
+
+Dosya sistemi seviyesinde versiyon kontrolü sağlayan sistemler, kullanıcıların manuel müdahalesi olmaksızın dosya değişikliklerini otomatik olarak takip etmeyi amaçlar. Bu yaklaşım, Git gibi geleneksel versiyon kontrol sistemlerinden köklü bir şekilde ayrılır; kullanıcı bilinçli bir commit işlemi yapmak yerine, dosya sistemi her write işleminde değişikliği otomatik olarak yönetir.
+
+Bu alandaki öncü çalışmalardan biri olan Elephant dosya sistemi, "hiçbir şeyi unutmayan dosya sistemi" (the file system that never forgets) felsefesiyle tasarlanmıştır (Santry vd., 1999). Elephant, her dosya değişikliğini yeni bir inode ile saklar ve disk alanının dolmasını engellemek için "dönüm noktası versiyonlaması" (landmark versioning) adı verilen bir strateji kullanır. Bu stratejide dosyalar kısa ve uzun ömürlü olarak sınıflandırılır; ayrıca thinning (seyreltme) politikası ile yakın geçmişteki değişiklikler yoğun tutulurken, eski değişiklikler logaritmik olarak seyreltilir.
+
+Benzer bir yaklaşımla geliştirilen ext3cow, inode seviyesinde versiyonlama yaparak ve file.txt@20231015 gibi zaman kaydırmalı (time-shifting) bir sözdizimi kullanarak geçmişe erişim sağlamıştır (Peterson ve Burns, 2005). Bu yöntem minimal performans kaybı sunsa da, kullanılan @ sözdizimi standart POSIX araçlarıyla uyumluluk sorunlarına yol açmaktadır.
+
+Daha esnek bir mimari sunan Versionfs ise stackable (yığınlanabilir) dosya sistemi yapısını kullanır (Muniswamy-Reddy vd., 2004). Mevcut dosya sistemlerinin üzerine monte edilebilen Versionfs, kullanıcılara "seyrek" (sparse) ve "yoğun" (dense) versiyonlama gibi esnek politikalar sunar. Dense versioning tüm değişiklikleri kaydederken, sparse versioning sadece önemli görülen değişiklikleri saklayarak depolama verimliliği sağlar. Benzer şekilde CVFS (Comprehensive Versioning File System), meta-veri ve veri versiyonlamasını ayırarak ve gereksiz dosya tiplerini filtreleyerek performans optimizasyonu sağlamayı hedeflemiştir (Soules ve Goodson, 2003).
+
+Bazı çalışmalar ise çekirdek karmaşıklığından kaçınmak için kullanıcı alanında (user-space) çözümler üretmiştir. Örneğin Wayback dosya sistemi, FUSE (Filesystem in Userspace) altyapısını kullanarak geliştirilmiş ve süreçlerin dosya işlemlerini takip etmiştir (Cornell, Dinda ve Bustamante, 2004). Ancak FUSE tabanlı sistemlerin performans maliyeti üzerine yapılan detaylı analizler, kullanıcı alanı dosya sistemlerinin çekirdek seviyesi implementasyonlara kıyasla %80'e varan performans kaybı yaşayabildiğini göstermiştir (Vangoor, Tarasov ve Zadok, 2017).
+
+Bu performans kaybının temel nedeni, her dosya operasyonu için user-space ile kernel-space arasında gerçekleşen bağlam değişimleridir (context switch). Vangoor et al.'nin bulguları, üretim ortamları (production) için tasarlanan versiyonlamalı dosya sistemlerinin, I/O maliyetlerini düşürmek adına çekirdek seviyesinde (kernel-level) geliştirilmesi gerektiğini kanıtlamaktadır.
+
+Günümüzde Btrfs ve ZFS gibi modern dosya sistemleri, native snapshot desteği sunarak versiyon kontrolü gerçekleştirebilmektedir. Btrfs, Copy-on-Write (CoW) B-tree yapısı sayesinde anlık görüntüleri (snapshot) çok hızlı ve verimli bir şekilde oluşturur (Pilato, Collins-Sussman ve Fitzpatrick, 2008).
+
+Ancak bu sistemlerdeki snapshot mekanizması genellikle volume (disk bölümü) veya subvolume düzeyinde çalışır. Dosya bazında granüler (fine-grained) ve otomatik versiyon takibi yapmak istendiğinde, bu sistemler ya yetersiz kalmakta ya da tüm dosya sisteminin görüntüsünü almayı gerektirdiği için verimsiz olmaktadır. Bu durum, dosya seviyesinde çalışan, Git benzeri içerik adreslemeli ve çekirdek seviyesinde optimize edilmiş özel tasarımlara olan ihtiyacı ortaya koymaktadır.
+
+Tablo 1 Versiyon Kontrol Özellikli Dosya Sistemlerinin Karşılaştırılması
+
+Sistem	Çalışma Düzeyi	Versiyonlama 	Hassasiyet	Dezavantajlar
+Elephant	Kernel	Inode Loglama (Landmark)	Dosya Bazlı	Yüksek metadata yükü ve bakım zorluğu.
+ext3cow	Kernel	Time-Shifting (Zaman damgası)	Dosya Bazlı	Özel syntax (@time) POSIX uyumsuzluğu yaratır.
+Btrfs / ZFS	Kernel	Copy-on-Write (CoW)	Volume / Subvolume	Tek dosya için tüm sistemi snapshot almak verimsiz.
+Wayback (FUSE)	User Space	Loglama	Dosya Bazlı	Kernel-User geçişleri nedeniyle %80'e varan performans kaybı.
+
+2.4. 	Versiyon Kontrol Sistemlerinde Arayüz Yaklaşımları
+
+Grafik arayüzlerin (GUI), özellikle branching ve merging gibi karmaşık süreçlerin görselleştirilmesinde teknik olmayan kullanıcılara önemli avantajlar sağladığı bilinmektedir (Storey vd., 2014).
+
+Ancak sistem yöneticileri, uzman kullanıcılar ve çoğu Linux programı için Command Line Interface (CLI) temel bir gereksinimdir. Teknik olmayan kullanıcılar için kullanımı kolay bir GUI ve sistem entegrasyonu için POSIX uyumlu bir CLI arayüzüne aynı anda ihtiyaç duyulmaktadır. Linux ekosisteminde CLI tabanlı araçların, otomasyon ve scripting yetenekleri açısından POSIX standartlarına ve "En Az Şaşırtma İlkesi"ne (Rule of Least Surprise) uyması beklenmektedir (Raymond, 2003).
+
+2.4.1.	CLI Arayüzler
+
+Versiyon takibini komut satırına entegre etmek için literatürde "Time-Shifting Syntax", sanal dizin yapısı ve özel programlar olmak üzere üç ana yöntem öne çıkmaktadır.
+
+İlk yaklaşım olan "Time-Shifting Syntax", dosya yollarını manipüle ederek geçmişe erişimi hedefler. Ext3cow dosya sistemi için geliştirilen yapıda, standart dosya yollarına zaman damgası ekleyen bir sözdizimi (örneğin dosya ismine @tarih eklenmesi) önerilmiştir (Peterson ve Burns, 2005). Bu yöntem, herhangi bir mount işlemine gerek duymadan şeffaf bir erişim sağlasa da ciddi uyumluluk sorunlarını beraberinde getirir. Standart UNIX araçlarının ve shell ortamlarının @ karakterini özel bir anlamda yorumlaması veya escape character olarak algılaması, bu sözdiziminin mevcut scriptlerle entegrasyonunu zorlaştırmaktadır.
+
+İkinci yaklaşım olan ZFS ve NetApp WAFL gibi sistemlerde, dosya sisteminin kök dizininde .snapshot veya benzeri gizli klasörler oluşturulur (Hitz, Lau ve Malcolm, 1994). Bu mimarinin en büyük avantajı, cd, ls, cp gibi standart komutların hiçbir değişikliğe uğramadan kullanılabilmesidir. Kullanıcılar, özel bir syntax öğrenme ihtiyacı duymadan dizinler arasında gezinerek geçmiş versiyonlara ulaşabilir ve mevcut programlar versiyonlu dosya sistemi üzerinde sorunsuz çalışabilir.
+
+Üçüncü yaklaşım ise dosya sistemi operasyonlarını soyutlayan özel programların kullanımıdır. Wayback dosya sistemi ve Linux tabanlı NILFS2, versiyon yönetimi için sisteme özgü yeni komut setleri sunar (Cornell, Dinda ve Bustamante, 2004; Konishi vd., 2006). Bu sistemlerde, dosya içeriğini geri almak veya versiyonları listelemek için vrevert veya lscp (list checkpoints) gibi sisteme özel yazılmış programlar kullanılır. Bu yaklaşım, dosya sisteminin sunduğu metadataların detaylıca raporlanmasına olanak tanısa da kullanıcılar için yeni bir öğrenme eğrisi oluşturur. Ayrıca, bu özel komutların standart UNIX araçlarıyla (pipe, grep vb.) kombinasyonu, standart dosya operasyonlarına göre daha kısıtlı olabilmektedir.
+
+2.4.2.	GUI Arayüzler ve Görselleştirme Stratejileri
+
+Standart kullanıcılar için komut satırı, yüksek bilişsel yük gerektiren ve hataya açık bir süreçtir. Grafiksel arayüzlerin temel amacı, dosya sisteminin karmaşık kronolojisini insan zihninin daha kolay işleyebileceği görsel modellerle sunmaktır. Bu yaklaşım, versiyonlama sürecini soyut teknik terimlerden arındırarak daha somut ve anlaşılabilir bir şekle dönüştürür.
+
+Bu alandaki en belirgin örneklerden biri, Apple macOS işletim sistemi ile sunulan Time Machine uygulamasının yaklaşımıdır. Time Machine, önceki versiyonlara erişim yapısını kullanıcılara "zamanda yolculuk" konsepti ile sunar. Bu arayüz, güncel dosya görünümünün arkasına geçmiş versiyonları derinlik algısı (z-axis) ile yerleştirerek üç boyutlu bir düzlemde görselleştirir.
+
+Yazılım geliştiriciler için tasarlanan GitKraken ve SourceTree gibi gelişmiş arayüzler ise dosya odaklı yaklaşımdan ziyade proje tarihçesinin topolojisine odaklanır. İnsan algısı için Git'in mantıksal yapısını oluşturan Directed Acyclic Graph (DAG) modelini kavramak zordur; özellikle karmaşık dallanma durumlarında bu yapının zihinsel takibi daha da zorlaşmaktadır (De Rosso ve Jackson, 2016).
+Modern versiyon kontrol arayüzleri, bu karmaşık dallanma ve birleştirme yapılarını, literatürde Software Evolution Storylines veya görsel benzerliği nedeniyle Metro Map Metaphor olarak bilinen yöntemle görselleştirerek kullanıcı deneyimini iyileştirmeyi hedefler (Ogawa ve Ma, 2010).
+
+Bu yaklaşımda, her bir geliştirme dalı (branch) farklı bir renk ile kodlanmış bir metro hattı gibi, her bir commit ise bu hat üzerindeki bir istasyon gibi temsil edilir. Bu metafor, özellikle büyük ölçekli projelerde yüzlerce dalın ve binlerce değişikliğin oluşturduğu karmaşık yapının anlaşılabilir kılınmasını sağlar.
+
+
+
+
+
+ 
+
+
+BÖLÜM 3.	YÖNTEM VE TASARIM
+
+
+3.1. 	Materyal
+
+Tasarım sürecinde, x86-64 mimarisine sahip donanım üzerinde Windows 11 ve VirtualBox sanallaştırma yazılımı ile oluşturulan Linux Fedora çalışma ortamı kullanılmıştır. Tasarımın teknik altyapısını kurgulamak amacıyla Linux Kernel 2.6 ve 6.x versiyonlarının VFS API yapıları ve Git versiyon kontrol sisteminin 2.x versiyon mimarisi referans alınarak incelenmiştir. Sistemin mimari şemaları ve veri akış diyagramlarının oluşturulmasında ise draw.io aracı kullanılmıştır.
+3.2. 	Linux Dosya Sistemi Mimarisi ve VFS Yapısı
+
+Linux dosya sistemlerinin temelini oluşturan Virtual File System katmanı, farklı dosya sistemlerinin kernel ile standart bir arayüz üzerinden iletişim kurmasını sağlayan kritik bir soyutlama mekanizmasıdır. (Kleiman, 1986) tarafından SunOS için geliştirilen vnodes mimarisinden esinlenerek bu çekirdeğe uyarlanan VFS konsepti, modern Linux kernel'inin en önemli bileşenlerinden birini oluşturur. Tasarlanan versiyon kontrol dosya sisteminin VFS ile entegrasyonunu sağlayabilmek için öncelikle bu yapının detaylı olarak anlaşılması gerekmektedir.
+
+3.2.1.	VFS Temel Veri Yapıları
+
+VFS mimarisi dört temel nesne türü üzerine inşa edilmiştir ve bu nesneler arasındaki ilişkiler dosya sistemi operasyonlarının gerçekleştirilmesini sağlar. Bu yapıların kernel içerisindeki rolleri ve etkileşimleri, "Linux Kernel Development" eserinde kapsamlı olarak açıklanmıştır (Love, 2010).
+
+Superblock Yapısı, dosya sisteminin en üst seviye veri yapısıdır ve dosya sisteminin genel özelliklerini ve durumunu tutar. Her mount edilen dosya sistemi için kernel bellekte bir superblock nesnesi oluşturulur. Superblock yapısı dosya sisteminin tipini, toplam boyutunu, kullanılabilir ve kullanılan blok sayısını, inode sayısını ve dosya sistemine özgü operasyon fonksiyonlarını içeren function pointer'ları barındırır.
+
+Inode Yapısı, dosya ve dizinlerin metadata bilgilerini saklayan temel veri yapısıdır. Her dosya ve dizin için benzersiz bir inode numarası vardır ve bu numara, dosya sisteminin ömrü boyunca değişmez. Inode yapısı dosya izinlerini, sahiplik bilgilerini, zaman damgalarını, dosya boyutunu ve veri bloklarının disk üzerindeki konumlarını gösteren pointer'ları içerir.
+
+Standart inode yapısına ek olarak, tasarlanan sistemde her inode versiyon zinciri bilgilerini doğrudan kendi yapısı içerisinde taşıyacaktır. Versiyon takibi dosya yoluna veya ismine değil, yalnızca inode numarasına bağlı olarak yapılacaktır. Bir kullanıcı dosyayı yeniden adlandırırsa, hard link oluşturursa ya da dosyanın konumunu değiştirirse, versiyon geçmişi kaybolmaz çünkü takip mekanizması inode seviyesindedir. Her inode önceki versiyonuna ait inode numarasını, versiyon ID'sini ve oluşturulma zamanını native field'lar olarak içerecektir.
+
+ 
+Şekil 2 Inode yapıları
+
+Dentry Yapısı, directory entry nesnelerini temsil eder ve dosya sisteminin dizin hiyerarşisini bellekte tutar. Basitçe dentry'ler, dosya isimlerini inode'lara bağlayan veri yapılarıdır. Her dentry parent directory'sine, child directory ve dosyalara pointer'lar ve ilişkili inode'a bir referans içerir.
+
+VCFS'de önemli bir tasarım prensibi olarak head inode, versiyon değişikliklerinden bağımsız bir şekilde sürekli sabit kalır. Dosya değişikliğinde, eski veri yeni bir inode'a kopyalanır ve eski versiyonlar zinciri oluşturulur/güncellenir, ancak directory entry her zaman aynı orijinal inode'u gösterir. Bu sayede dentry cache değişimine gerek kalmaz ve sadece inode içindeki pointer'lar güncellenir. Kullanıcı eski bir versiyona geçiş yaptığında head inode ile eski versiyon inode içerikleri swap edilir, böylelikle dosya tutarlılığı sağlanmış olur.
+
+File Yapısı, açık bir dosyayı temsil eder ve process'ler tarafından kullanılan file descriptor'lar ile ilişkilidir. Her process, açtığı her dosya için bir file descriptor alır ve bu descriptor, kernel'deki bir file nesnesine işaret eder. File yapısı; dosyanın açılış modunu, şu anki dosya pozisyonunu ve dosya operasyonlarını gerçekleştiren function pointer'ları içerir.
+
+3.2.2.	VFS Operasyon Fonksiyonları
+
+VFS, dosya sistemi operasyonlarını gerçekleştirmek amacıyla her veri yapısı için bir dizi operasyon fonksiyonu tanımlar. Bu operasyon fonksiyonlarının dosya sistemi geliştiriciler tarafından nasıl doldurulması gerektiği ve uygulama detayları literatürde kapsamlıca ele alınmıştır (French, 2006; Bovet ve Cesati, 2008; Love, 2010).
+
+Superblock Operations, dosya sistemi seviyesindeki yönetimsel işlemleri kapsar. Bu operasyonlar arasında inode allocation ve deallocation, dosya sistemini diske yazma ve unmount işlemleri bulunur. Tasarlanan versiyon kontrol sisteminde, bu standart operasyonlara versiyon metadata'larını güncelleme ve senkronize etme rutinleri entegre edilecektir.
+
+Veri tutarlılığını sağlamak adına sistemde ordered update protocol uygulanması öngörülmüştür. Bu protokol gereği önce veri blokları yazılır ve sync edilir, ardından ilgili metadata güncellenir ve tekrar sync edilir. Bu mekanizma, olası bir güç kesintisi durumunda dosya sisteminin tutarsız duruma düşmesini engeller. Ayrıca mount işlemi sırasında çalışacak bir recovery prosedürü, yarım kalmış versiyon yazma işlemlerini tespit edip temizleyecektir. Özellikle unmount operasyonu sırasında, tüm pending versiyonların diske yazılması ve metadata'nın stable duruma getirilmesi sistem güvenilirliği açısından kritiktir.
+
+Inode Operations, dosya ve dizinler üzerinde gerçekleştirilen temel işlemleri tanımlar. Create, lookup, link, unlink, mkdir, rmdir ve rename gibi fonksiyonlar bu yapı içerisinde yer alır. Ext3cow gibi sistemlerde bu operasyonların override edilerek copy-on-write mekanizması ile nasıl entegre edildiği daha önceki çalışmalarda gösterilmiştir (Muniswamy-Reddy vd., 2004). VCFS tasarımında da benzer bir yaklaşımla, bu operasyonlar intercept edilerek (araya girilerek) her dosya modifikasyonunda otomatik versiyon oluşturulması sağlanacaktır.
+
+File Operations, süreçler tarafından açılan dosyalar üzerindeki akışı yönetir. Read, write, open ve close gibi operasyonlar bu yapıda tanımlanır. Tasarlanan sistemde, close operasyonu standart üzerine yazma işlemi yerine yeni bir versiyon oluşturacak şekilde uyarlanacaktır.
+
+3.3. 	Git Versiyon Kontrol Mekanizması ve Adaptasyonu
+
+Git'in versiyon kontrol yaklaşımı, bu projede dosya sistemi seviyesinde uygulanacak versiyon kontrol mekanizmasının temel ilham kaynağıdır. Git'in tasarım prensipleri açıklanırken hız, basitlik ve dağıtık mimari desteğinin temel hedefler olduğu belirtilmiştir, (torvalds ve hamano, 2025).
+
+3.3.1.	Git'in Temel Çalışma Prensibi
+User space bir dosya operasyonu başlatıldığında, süreç sistem çağrısı arayüzü üzerinden Kernel’e geçer ve VFS katmanı devreye girer. Sistem çağrılarının Kernel  içerisinde işlenmesi ve VFS'nin bu süreçteki soyutlama rolü literatürde detaylıca incelenmiştir (Bovet ve Cesati, 2008).
+
+Örneğin, standart bir dosya açma operasyonu şu adımları takip eder: Kullanıcı open() çağrısını yapar, VFS dosya yolunu çözümleyerek dentry lookup işlemini gerçekleştirir, ilgili dosya sistemi diskten inode'u okur, inode bellekte önbelleğe (cache) alınır, bir file nesnesi oluşturulur ve kullanıcıya bir file descriptor döndürülür.
+
+Bu çağrı akışının her adımında, dosya sistemi geliştiricilerinin hangi callback fonksiyonlarını uygulaması gerektiği tanımlanmıştır (French, 2006). Tasarlanan sistemde bu standart akış, araya giren bir versiyon kontrol katmanı ile genişletilecektir. 
+
+3.3.2.	Linear Versiyonlama Modeli
+
+Git'in tam özellikli branch ve merge mekanizması, dosya sistemi seviyesinde uygulandığında gereksiz karmaşıklık yaratacaktır. Dosya bazlı versiyonlama senaryolarında, linear bir model kullanmanın pratik avantajları ve uygulanabilirliği literatürde gösterilmiştir (Muniswamy-Reddy vd., 2004). Bu nedenle, tasarlanan sistemde linear bir versiyon zinciri kullanılacaktır.
+
+Linear model, uygulama karmaşıklığının azalması, kullanıcı için kronolojik ve anlaşılır bir versiyon geçmişi, merge conflict'lerinin ortadan kalkması ve daha az metadata overhead gibi avantajlar sağlar. Benzer bir yaklaşım Elephant dosya sisteminde de kullanılmış ve bu modelin dosya sistemi seviyesindeki versiyon kontrolü için yeterli ve verimli olduğu kanıtlanmıştır (Santry vd., 1999).
+
+3.3.3.	Delta Compression ve Deduplication
+
+Git, pack file mekanizması ile benzer nesneleri delta compression kullanarak verimli bir şekilde depolar. Git'in çalışma mantığında nesneler önce bağımsız olarak saklanır, daha sonra garbage collection sürecinde benzer nesneler arasında farklar hesaplanarak sıkıştırma yapılır (Chacon ve Straub, 2014).
+
+Delta compression ve deduplication (veri tekilleştirme) işlemleri yüksek işlemci gücü ve yüksek buffer miktarları gerektirdiğinden, bu operasyonların Kernel alanı yerine kullanıcı user space gerçekleştirilmesi tasarlanmıştır. Modül yazma ilgili inode'ları işlenmek üzere "kirli" (dirty/pending) olarak işaretleyecektir.
+
+Arka planda çalışan user space daemon, periyodik olarak ya da kullanıcı isteğiyle işaretlenmiş dosyaları tarayacak, sıkıştırma sürecini güvenli bir şekilde yönetecektir. Bu süreç, çekirdek modülü ile netlink socket veya /proc arayüzü üzerinden haberleşir. Çekirdek, işlenmesi gereken inode listesini sürece iletir, süreç ise sıkıştırma işlemlerini tamamladıktan sonra çekirdeğe bildirimde bulunur. Bu mimari ayrıştırma, LFS'deki segment cleaner tasarımına benzeyen asenkron background işleme modeli oluşturur (Rosenblum ve Ousterhout, 1991).
+
+Optimizasyon stratejisi iki aşamalıdır. İlk seviyede, tamamen aynı içeriğe sahip dosya versiyonları için içerik tabanlı tekilleştirme (content-based deduplication) yapılacaktır. İkinci seviyede, Elephant dosya sisteminin versiyon seyreltme (thinning) politikasına benzer şekilde, eski versiyonlar delta compression ile sıkıştırılarak depolama alanı optimize edilecektir, (Santry vd., 1999).
+
+3.4. 	Versiyon Kontrol Dosya Sistemi Tasarımı ve VFS Entegrasyonu
+
+3.4.1.	Mimari Genel Bakış
+
+Tasarlanan versiyon kontrol dosya sistemi, VFS ile doğrudan entegrasyon sağlamak amacıyla bir çekirdek modülü (kernel module) olarak geliştirilecektir. Literatürde, FUSE tabanlı kullanıcı alanı (user space) dosya sistemlerinin, çekirdek seviyesindeki uygulamalara kıyasla %80'e varan performans kayıplarına yol açabileceği gösterilmiştir (Vangoor, Tarasov ve Zadok, 2017). Bu bulgular doğrultusunda sistem; performans darboğazlarını aşmak adına doğrudan çekirdek alanında çalışan, VFS ile bütünleşik bir native dosya sistemi olarak tasarlanmıştır.
+
+Sistem mimarisi, VCFS çekirdek modülü ve user space üzerinde çalışan birdaemon olmak üzere iki temel bileşenden oluşmaktadır. Çekirdek modülü, Linux VFS arayüzü ile doğrudan entegre çalışarak üst katmandan gelen dosya operasyonlarını karşılarken, alt seviyede doğrudan block device katmanı ile etkileşime girerek disk bloklarını yönetir. Bu yaklaşım, SimpleFS gibi minimal dosya sistemlerinin mimarisine benzer şekilde, gereksiz soyutlama katmanlarını ortadan kaldırarak yüksek performans sağlar.
+
+Sistem, file_system_type yapısını VFS'ye kaydederek mount edilebilir hale gelmektedir. Mount işlemi esnasında, disk üzerindeki superblock yapısı okunur ve dosya sistemi metadata'sı belleğe yüklenir. LKM mekanizması sayesinde, sistemin çalışan çekirdeğe dinamik olarak yüklenmesi ve kaldırılması sağlanmıştır (Karadeniz ve Uluyol, 2021).
+
+Kullanıcı perspektifinden bakıldığında sistem, standart bir dizin altına mount edilir ve tüm dosya operasyonları standart sistem çağrıları ile gerçekleştirilir. Arka planda ise her dosya değişikliği otomatik olarak versiyonlanmakta ve bu tarihçe inode seviyesinde linked list yapısı ile yönetilmektedir. Bu şeffaflık prensibinin, kullanıcı deneyimi ve sistem uyumluluğu açısından taşıdığı kritik önem literatürde de vurgulanmıştır (Rodeh, 2008).
+
+3.4.2.	Disk Üzerinde Depolama Yapısı
+
+VCFS, disk üzerinde lineer bir blok organizasyonu kullanmaktadır. Bu yaklaşım, McKusick tarafından tanımlanan klasik Unix dosya sistemi düzenine (FFS) benzerlik göstermekle birlikte, versiyon kontrolü ihtiyaçları doğrultusunda optimize edilmiştir (McKusick vd., 1984). Sistemin temelini, genel ayarları, boyut bilgilerini ve kök dizin referansını barındıran Superblock yapısı oluşturur. Ext4 gibi modern dosya sistemlerinde vurgulandığı üzere, bu kritik metadata alanının yönetimi sistemin hata toleransı açısından hayati öneme sahiptir (Mathur, Cao ve Dilger, 2007). Ayrıca disk üzerindeki dolu ve boş alanların takibi, Inode ve Data Bitmap yapıları aracılığıyla sağlanmaktadır.
+
+Dosyaların kimlik bilgilerinin tutulduğu Inode Tablosu, standart dosya özelliklerinin yanı sıra versiyon geçmişini takip eden özel bağlantılarla zenginleştirilmiştir. Elephant dosya sisteminde kullanılan yaklaşıma paralel olarak, her dosya kendi versiyon geçmişini bir zincir yapısı içerisinde saklar (Santry vd., 1999). Diskin geri kalan büyük bölümü ise dosya içeriklerinin depolandığı veri bloklarına ve dosya isimlerini yöneten dizin yapılarına ayrılmıştır.
+
+Depolama verimliliğini artırmak amacıyla, veri bloklarının paylaşımına dayalı Copy-on-Write (Kopyala-Yaz) mekanizması tercih edilmiştir. Bir dosya güncellendiğinde, verinin tamamının kopyalanması yerine sadece değişen kısımlar için yeni bloklar tahsis edilir; değişmeyen kısımlar ise eski ve yeni versiyon arasında ortaklaşa kullanılır. Tasarımın en kritik yönü, dizin yapısının her zaman en güncel versiyonu (Head Inode) işaret etmesidir. Ext3cow sisteminde de başarıyla uygulanan bu yöntem sayesinde, sistemin genel performansı etkilenmeden eski versiyonlara arka plandaki zincir yapısı üzerinden erişim sağlanabilmektedir (Muniswamy-Reddy vd., 2004).
+
+3.4.3.	Versiyon Metadata Yönetimi
+
+VCFS mimarisinde versiyon metadata'sı, harici yapılar yerine doğrudan inode yapısının içerisinde yerel (native) alanlar olarak saklanmaktadır. Genişletilmiş öznitelik (extended attributes) uygulamalarının sisteme getirdiği ek yük ve karmaşıklık literatürde belirtilmiştir (Bonwick vd., 2003). Bu nedenle tasarımda yerel saklama yaklaşımı benimsenerek, verilere daha hızlı erişim imkanı ve daha düşük mimari karmaşıklık sağlanmıştır.
+
+Her inode, versiyon takibini sağlamak için özelleştirilmiş alanlar barındırır. Dosyanın versiyon numarası version_id ile, oluşturulma zamanı ise zaman damgası tabanlı filtrelemeye (timestamp-based filtering) olanak tanıyan version_timestamp alanı ile takip edilir (Peterson ve Burns, 2005). Versiyon tarihçesi, prev_version_inode alanı üzerinden kurulan bir bağlı liste (linked list) yapısıyla yönetilir. Bu alan bir önceki versiyonun inode numarasını işaret eder; değerin 0 olması dosyanın ilk versiyonu olduğunu gösterir. Sistem, bir dosyanın tüm geçmişini listelemek için dizin yapısındaki güncel (head) inode'dan başlayarak bu zinciri geriye doğru tarar. Elephant sisteminde dosyaların ortalama 10-20 versiyona sahip olduğu verisinden hareketle, bu tür bir zincir tarama maliyetinin ihmal edilebilir düzeyde olduğu gösterilmiştir (Santry vd., 1999).
+
+Tasarımın en güçlü yönlerinden biri, versiyonlama mekanizmasının tamamen inode numarası tabanlı olmasıdır. FFS tasarımında ortaya konan "inode = dosya kimliği" prensibine sadık kalınmıştır (McKusick vd., 1984). Bu sayede dosya ismi değiştirilse veya hard-link oluşturulsa dahi versiyon geçmişi korunur; çünkü dizin girdileri (directory entries) sadece inode numarasını referans alır. VFS entegrasyonu kapsamında, Linux çekirdeğinin bellek yönetimi avantajlarından yararlanmak amacıyla VCFS'nin özelleştirilmiş inode yapısı, VFS'nin jenerik struct inode yapısı ile bütünleşik (embedded) olarak çalışacak şekilde tasarlanmıştır (French, 2006).
+
+3.4.4.	Kernel Modülü İmplementasyonu
+
+Versiyon kontrol dosya sistemi, Linux çekirdeği üzerine LKM mimarisiyle inşa edilecektir. LKM yapısının, Linux işletim sisteminin esneklik ve genişletilebilirlik yeteneklerinin temel taşı olduğu literatürde belirtilmiştir (Karadeniz ve Uluyol, 2021). Bu doğrultuda modül, C programlama dili ile geliştirilecek ve çekirdek API'leri kullanılarak VFS katmanı ile doğrudan entegrasyon sağlayacaktır.
+
+Modülün yapısal tasarımı, standart Linux çekirdek modülü yaşam döngüsünü takip eder. Modül ilklendirme fonksiyonu (module_init); modül belleğe yüklendiğinde tetiklenir, gerekli veri yapılarını hazırlar (initialize), dosya sistemi tipini VFS'ye kaydeder (register) ve ihtiyaç duyulan çekirdek kaynaklarını tahsis eder (allocate). Modül temizleme fonksiyonu (module_exit) ise modül sistemden kaldırıldığında devreye girerek tüm kaynakları serbest bırakır, bekleyen (pending) işlemleri tamamlar ve sistem kaydını siler (unregister). Bu implementasyon süreci, SampleFS projesinde sunulan modül geliştirme "en iyi uygulama" (best practice) standartlarına uygun olarak yapılandırılmıştır (French, 2006).
+
+3.4.5.	Copy-on-Write Mekanizması
+
+Versiyon oluşturma ve depolama süreci, blok tabanlı Copy-on-Write (CoW) mekanizması üzerine inşa edilmiştir. (Rodeh, 2008), Btrfs mimarisinde bu yaklaşımın snapshot yönetimini nasıl verimli kıldığını ortaya koymuştur. Sistemde bir dosya güncellendiğinde, verinin tamamının kopyalanması yerine sadece içeriği değişen bloklar için yeni disk alanı tahsis edilir (Muniswamy-Reddy vd., 2004). Değişmeyen mevcut bloklar ise eski ve yeni versiyon arasında paylaşılarak (block sharing) disk kullanımı minimize edilir.
+
+Bu blok paylaşım yönetimi, kernel seviyesinde referans sayımı (reference counting) yöntemiyle takip edilir. (Rosenblum ve Ousterhout, 1991), bu yaklaşımın özellikle yazma performansını optimize ettiğini belirtmiştir. Yazma anında sistem performansını düşürebilecek karmaşık içerik tabanlı tekilleştirme (deduplication) işlemleri yerine, blok seviyesinde hızlı paylaşım tercih edilmiş; kapsamlı veri optimizasyonları ise ZFS mimarisinde önerildiği üzere art alan süreçlerine (daemon) bırakılmıştır (Bonwick vd., 2003).
+
+3.4.6.	Versiyon Geçişleri ve Checkout
+
+Kullanıcıların bir dosyanın geçmiş durumuna dönmesini sağlayan temel mekanizma checkout operasyonudur. Ext3 tabanlı versiyon kontrol sistemlerinde bu operasyonun teknik implementasyonu ve veri tutarlılığı üzerindeki etkileri literatürde detaylandırılmıştır (Peterson ve Burns, 2005).
+
+Checkout süreci şu sistematik adımları izler: İlk olarak, talep edilen hedef versiyon metadata üzerinden tanımlanır ve inode tablosundaki konumu tespit edilir. İşlem öncesinde veri güvenliğini sağlamak amacıyla, güncel dosyada (Head Inode) henüz kaydedilmemiş değişiklikler (dirty data) kontrol edilir; eğer varsa, mevcut durum korunarak otomatik bir snapshot oluşturulur. Ardından, Head Inode'un veri blokları hedef versiyonun içeriği ile takas edilir (content swapping) ve versiyon zinciri güncel duruma göre yeniden düzenlenir. Son adımda, dosya metadata bilgileri (erişim ve değişim zamanları) güncellenir.
+
+Elephant dosya sisteminde "Time-Travel" (Zamanda Yolculuk) olarak adlandırılan bu özellik, kullanıcıların dosya sisteminin geçmiş durumlarına şeffaf bir şekilde erişmesini sağlar (Santry vd., 1999). Tasarlanan sistemde de benzer bir yaklaşımla, kullanıcılara zaman veya versiyon ID tabanlı geri dönüş imkanı sunulmaktadır.
+
+3.4.7.	Çöp Kutusu (Trash) Mekanizması
+
+Sistemde bir dosya silme isteği geldiğinde, ilgili inode yapısı fiziksel olarak yok edilmek yerine korunur ve metadata üzerinde 'silinmiş' (deleted) olarak işaretlenir. Unix sistemleri için geliştirilen Otokor akıllı geri dönüşüm sisteminde de uygulanan bu yaklaşım veri kaybını önleyerek kullanıcılara hata telafisi imkanı sunar, (Pehlivan ve TENEKECİ, 2005).
+
+Silinen her dosya için; silme zamanı, orijinal dosya yolu (path), işlemi yapan kullanıcı ve son versiyon bilgileri saklanır. CLI ve GUI araçları, bu işaretlenmiş inode'ları özel bir liste olarak sunarak kullanıcılara silinen dosyaları inceleme ve istediklerini eksiksiz olarak geri yükleme (restore) olanağı tanır.
+
+3.4.8.	Performans Optimizasyonları
+
+Versiyon kontrol mekanizmaları, doğaları gereği dosya sistemi üzerinde ek bir performans yükü oluşturur. Dosya sistemi seviyesine eklenen katmanların işlem maliyetini artırdığı literatürde nicel olarak gösterilmiştir (Vangoor, Tarasov ve Zadok, 2017). Bu yükü minimize etmek ve sistemin genel tepki süresini korumak amacıyla, VCFS mimarisinde depolama verimliliğine odaklanan hedefli bir optimizasyon stratejisi benimsenmiştir.
+Sistemin uzun vadeli disk performansı ve alan verimliliği, Versiyon Sıkıştırma stratejisi ile yönetilir. Arka planda çalışan küser space daemon, eski versiyonları tarayarak delta sıkıştırma işlemine tabi tutar. Bu mekanizma, sistem kaynaklarını tüketmemek adına düşük işlem önceliğinde (low priority) çalışacak şekilde tasarlanmıştır.
+
+3.5. 	Komut Satırı Arayüzü (CLI) Tasarımı
+
+Versiyon kontrol dosya sistemi ile etkileşim için Git benzeri bir komut satırı arayüzü tasarlanmıştır. CLI, hem gelişmiş kullanıcılar için güçlü özellikler sunar hem de script'lerden kolayca kullanılabilir.
+
+3.5.1.	Temel Komut Mimarisi
+
+Komut satırı arayüzü (CLI), genel Linux programlama standartları referans alınarak tasarlanmıştır. Tüm operasyonlar, vcfs ana komutu altında hiyerarşik bir alt komut yapısı (subcommand) ile organize edilmiştir. Bu yapı, kullanıcıların sisteme aşinalığını artırmayı ve komut setinin genişletilebilir olmasını hedeflemektedir.
+
+3.5.2.	Temel Fonksiyonlar
+
+Sistem, dosya sürüm takibi ve yönetimi kapsamında çeşitli yeteneklere sahiptir. Öncelikli olarak dosyaların mevcut versiyon durumu, son değişiklik zamanı ve meta verileri sorgulanabilirken; her bir versiyon için oluşturma zamanı ve boyut bilgilerini içeren detaylı bir tarihçe kütüğü sunulmaktadır. Versiyon kontrolü ve manipülasyonu bağlamında kullanıcılar, mevcut dosya içeriğini geçmişteki herhangi bir versiyona döndürebilir ve versiyonlar arasındaki içerik farklarını karşılaştırabilirler. Veri kurtarma ve bakım süreçleri için ise yanlışlıkla silinen dosyaların geri getirilmesini sağlayan bir çöp kutusu mekanizması mevcuttur. Depolama verimliliğini sağlamak adına eski versiyonların belirli kriterlere göre temizlenmesi veya delta sıkıştırma yöntemiyle optimize edilmesi mümkündür.
+
+Tablo 2 VCFS CLI komut seti
+
+Komut	Parametreler	Açıklama
+vcfs log	<dosya_yolu>	Dosyanın tüm versiyon tarihçesini listeler (ID, Tarih, Boyut).
+vcfs checkout	<dosya_yolu> <versiyon_id>	Dosyayı belirtilen versiyon ID'sine geri döndürür.
+vcfs diff	<dosya_yolu> <v_id1> <v_id2>	İki versiyon arasındaki farkları gösterir.
+vcfs restore	<dosya_yolu>	Silinmiş bir dosyayı çöp kutusundan geri yükler.
+vcfs trash	--list / --clean	Çöp kutusundaki dosyaları listeler veya temizler.
+vcfs status	<dosya_yolu>	Dosyanın anlık durumu ve korunma durumu hakkında bilgi verir.
+
+
+3.5.3.	Gelişmiş Özellikler
+
+Temel dosya operasyonlarının yanı sıra sistem, ileri düzey yönetim fonksiyonlarını da barındırmaktadır. Bu kapsamda belirli bir versiyonun proje dizini dışına harici bir dosya olarak aktarılması ve iki farklı dosyanın versiyon geçmişlerinin kıyaslanması sağlanmıştır. Sistemin çalışma davranışları ise yapılandırılabilir bir mimaride sunulmuş olup; otomatik kayıt durumu, anlık görüntü alma aralıkları ve versiyon saklama politikaları gibi parametreler dinamik olarak yönetilebilmektedir.
+3.6. 	Grafik Kullanıcı Arayüzü (GUI) Tasarımı
+
+GUI uygulaması, modern bir desktop framework kullanılarak geliştirilecektir. Linux desktop ortamları ile daha iyi entegrasyon için GTK+ kullanılarak native bir uygulama geliştirilmesi hedeflenmiştir. Bu yaklaşım, daha az kaynak tüketimi ve daha iyi performans sağlar.
+
+ 
+Şekil 3 GUI tasarımı mockup
+
+3.6.1.	Ana Uygulama Penceresi
+
+Uygulama arayüzü, kullanıcı etkileşimini kolaylaştırmak amacıyla üç ana panelden oluşan bütünleşik bir yerleşim düzenine (layout) sahip olacaktır. Sol panelde konumlandırılan dosya tarayıcısı, versiyon kontrolü altındaki dizin yapısını ağaç görünümü (tree view) ile sunarak; her dosya için versiyon sayısı, son değişiklik zamanı ve dosya boyutu gibi bilgileri listeler ve versiyonlanmış dosyaları özel ikonlarla ayırt eder. Arayüzün merkezinde, seçili dosyanın tarihçesini görselleştiren ve interaktif bir kaydırma mekanizması (slider veya scrollable list) ile kontrol edilen versiyon zaman çizelgesi (timeline) yer alır; bu alanda her versiyon için numara, oluşturulma zamanı ve desteklenen dosya tipleri için küçük resim thumbnail gösterilir. Sağ panel ise seçili versiyonun içeriğine dair basit bir inceleme alanı sunar, burada metin tabanlı dosyalar ve görsel dosyalar için önizleme araçları sağlanmaktadır.
+
+3.6.1.1. 	Versiyon Timeline Görünümü
+
+Versiyon geçmişi, kullanıcının kolayca anlayabileceği görsel bir timeline ile sunulacaktır. Timeline tasarımı, MacOS Time Machine arayüzünden ilham alınmıştır ancak daha minimalist ve modern bir yaklaşım benimsenmiştir.
+
+Timeline'da her versiyon bir node olarak temsil edilir ve versiyonlar kronolojik sırayla horizontal veya vertical olarak dizilir. Node'lar arasındaki bağlantılar, versiyon zincirini görsel olarak gösterir. Kullanıcı, timeline üzerinde fare ile gezinerek farklı versiyonları inceleyebilir ve çift tıklayarak bir versiyonu restore edebilir.
+
+3.6.1.2. 	Karşılaştırma ve Diff Görünümü
+
+Kullanıcılar, iki versiyon arasındaki farkları görsel olarak görebilmelidir. Diff görünümü, side-by-side comparison layout'u kullanacaktır. Sol tarafta eski versiyon, sağ tarafta yeni versiyon gösterilir ve farklılıklar renk kodlaması ile vurgulanır.
+Metin dosyaları için, line-by-line diff gösterimi kullanılır. Eklenen satırlar yeşil, silinen satırlar kırmızı, değiştirilen satırlar sarı renk ile highlight edilir. Binary dosyalar ve görseller için, metadata karşılaştırması ve görsel preview sunulur.
+3.6.1.3. 	Versiyon Restore İşlemi
+
+Bir versiyonu restore etmek, kullanıcı için kritik bir işlem olduğundan, bu işlem için net bir onay akışı tasarlanmıştır. Kullanıcı restore butonu tıkladığında, şu adımlar gerçekleşir:
+Öncelikle bir confirmation dialog gösterilir ve mevcut versiyon otomatik olarak yeni bir versiyon olarak kaydedileceği bilgisi verilir. Kullanıcı onayladığında, seçili versiyon working directory'ye kopyalanır ve HEAD güncellenir. İşlem tamamlandığında, başarı mesajı ve undo seçeneği sunulur.
+
+3.6.2.	 Çöp Kutusu Yönetimi
+
+GUI, ayrı bir çöp kutusu görünümü sunacaktır. Bu görünüm, silinen dosyaları liste formatında gösterir ve her dosya için silme zamanı, orijinal konum ve boyut bilgilerini içerir. Kullanıcılar, dosyaları seçerek restore edebilir veya kalıcı olarak silebilir.
+Çöp kutusu görünümü ayrıca otomatik temizleme politikasını yapılandırmak için ayarlar sunar. Kullanıcılar, silinen dosyaların ne kadar süre saklanacağını veya çöp kutusunun maksimum boyutunu belirleyebilir.
+
+ 
+BÖLÜM 4.	PROJE GELİŞTİRME SÜRECİ
+
+
+
+
+
+
+BÖLÜM 5.	ÇALIŞMANIN ETKİLERİ VE SORUMLULUKLARI 
+BÖLÜM 6.	TARTIŞMA VE SONUÇ
+
+
+Bu çalışmada linux işletim sistemleri odağında kullanıcılara dosya bazında versiyon kontrolü sağlamayı amaçlayan çalışmalar incelenmiştir. Ayrıca Güncel Linux Kernel versiyonlarında ideal tutarlılıkta halihazırda bulunmayan ve ek olarak kullanımları da özellikle standart bir kullanıcı için karmaşık olan versiyon kontrol mekanizmalarına alternatif olacak bir Versiyon kontrollü dosya sistemi tasarlanmıştır. Bu tezde tasarlanan dosya sistemi belirtilen problemlere güncel ve sade bir  çözüm üretmeyi amaçlamıştır.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+KAYNAKLAR
+
+Billimoria, K.N. (2024) Linux Kernel Programming: A comprehensive and practical guide to kernel internals, writing modules, and kernel synchronization. Packt Publishing Ltd.
+Bonwick, J. vd. (2003) “The zettabyte file system”, içinde Proc. of the 2nd Usenix Conference on File and Storage Technologies, s. 1.
+Bovet, D.P. ve Cesati, M. (2008) Understanding the Linux Kernel. 3rd ed. Sebastopol: O’Reilly Media, Inc.
+Chacon, S. ve Straub, B. (2014) Pro git. Springer Nature.
+Cornell, B., Dinda, P.A. ve Bustamante, F.E. (2004) “Wayback: A user-level versioning file system for linux”, içinde Proceedings of Usenix Annual Technical Conference, FREENIX Track, ss. 19-28.
+De Rosso, S.P. ve Jackson, D. (2016) “Purposes, concepts, misfits, and a redesign of git”, ACM SIGPLAN Notices, 51(10), ss. 292-310. Erişim adresi: https://doi.org/10.1145/3022671.2984018.
+French, S. (2006) “Linux Filesystems in 45 Minutes: A Step by Step Introduction to Writing (or Understanding) a Linux Filesystem”. Ottawa, Canada, Temmuz.
+Gooch, Richard (1993) Overview of the Virtual File System.
+Hitz, D., Lau, J. ve Malcolm, M.A. (1994) “File System Design for an NFS File Server Appliance.”, içinde USENIX winter, ss. 10-5555.
+Karadeniz, K. ve Uluyol, Ç. (2021) “Linux İşletim Sisteminde Log Dosyalarının Adli Bilişim Açısından İncelenmesi”.
+Kleiman, S.R. (1986) “Vnodes: An Architecture for Multiple File System Types in Sun UNIX.”, içinde USENIX summer, ss. 238-247.
+Konishi, R. vd. (2006) “The Linux implementation of a log-structured file system”, ACM SIGOPS Operating Systems Review, 40(3), ss. 102-107. Erişim adresi: https://doi.org/10.1145/1151374.1151375.
+Loeliger, J. ve McCullough, M. (2012) Version Control with Git: Powerful tools and techniques for collaborative software development.  O’Reilly Media, Inc.
+Love, R. (2010) Linux kernel development. Pearson Education.
+Mathur, A., Cao, M. ve Dilger, A. (2007) “ext4: the next generation of the ext3 file system”, Usenix Association, 32(3), ss. 25-30.
+McKusick, M.K. vd. (1984) “A fast file system for UNIX”, ACM Transactions on Computer Systems, 2(3), ss. 181-197. Erişim adresi: https://doi.org/10.1145/989.990.
+Muniswamy-Reddy, K.-K. vd. (2004) “A Versatile and User-Oriented Versioning File System.”, içinde FAST, ss. 115-128.
+Ogawa, M. ve Ma, K.-L. (2010) “Software evolution storylines”, içinde Proceedings of the 5th international symposium on Software visualization. SOFTVIS ’10: International Symposium on Software Visualization, Salt Lake City Utah USA: ACM, ss. 35-42. Erişim adresi: https://doi.org/10.1145/1879211.1879219.
+Pehlivan, H. ve TENEKECİ, M.E. (2005) “UNİX İŞLETİM SİSTEMLERİ İÇİN AKILLI GERİ DÖNÜŞÜM KUTUSU TASARIMI VE GERÇEKLEŞTİRİLMESİ”.
+Peterson, Z. ve Burns, R. (2005) “Ext3cow: a time-shifting file system for regulatory compliance”, ACM Transactions on Storage, 1(2), ss. 190-212. Erişim adresi: https://doi.org/10.1145/1063786.1063789.
+Pilato, C.M., Collins-Sussman, B. ve Fitzpatrick, B.W. (2008) Version control with subversion: next generation open source version control.  O’Reilly Media, Inc.
+Raymond, E.S. (2003) Art of UNIX Programming, The, Portable Documents. Addison-Wesley Professional.
+Rodeh, O. (2008) “B-trees, shadowing, and clones”, ACM Transactions on Storage, 3(4), ss. 1-27. Erişim adresi: https://doi.org/10.1145/1326542.1326544.
+Rosenblum, M. ve Ousterhout, J.K. (1991) “The design and implementation of a log-structured file system”, içinde Proceedings of the thirteenth ACM symposium on Operating systems principles. SOSP91: 13th ACM Symposium on Operating Systems Principles, Pacific Grove California USA: ACM, ss. 1-15. Erişim adresi: https://doi.org/10.1145/121132.121137.
+Santry, D.S. vd. (1999) “Deciding when to forget in the Elephant file system”, içinde Proceedings of the seventeenth ACM symposium on Operating systems principles. SOSP99: 17th Symposium on Operating Systems Principles, Charleston South Carolina USA: ACM, ss. 110-123. Erişim adresi: https://doi.org/10.1145/319151.319159.
+Soules, C.A. ve Goodson, G.R. (2003) “Metadata efficiency in versioning file systems”, içinde 2nd USENIX Conference on File and Storage Technologies (FAST 03).
+Storey, M.-A. vd. (2014) “The (R) Evolution of social media in software engineering”, içinde Future of Software Engineering Proceedings. ICSE ’14: 36th International Conference on Software Engineering, Hyderabad India: ACM, ss. 100-116. Erişim adresi: https://doi.org/10.1145/2593882.2593887.
+Tichy, W.F. (1985) “Rcs — a system for version control”, Software: Practice and Experience, 15(7), ss. 637-654. Erişim adresi: https://doi.org/10.1002/spe.4380150703.
+torvalds,  linus ve hamano,  junio (2025) “Git Source Code Documentation”.
+Torvalds, L. (2005) “Initial revision of ‘git’, the information manager from hell”.
+Vangoor, B.K.R., Tarasov, V. ve Zadok, E. (2017) “To {FUSE} or not to {FUSE}: Performance of {User-Space} file systems”, içinde 15th USENIX Conference on File and Storage Technologies (FAST 17), ss. 59-72.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+EK: STANDARTLAR VE KISITLAR FORMU
+
+1.	Çalışmanın amacını özetleyiniz.
+Bu çalışmanın amacı; Linux sistemlerinde veri güvenliğini artırmak için, Git benzeri versiyon kontrol mantığını dosya sistemi (kernel) seviyesine uyarlayan bir sistem ve eşlenik çalışacak bir arayüz geliştirmektir. Mevcut karmaşık çözümlere alternatif olarak, son kullanıcı odaklı, sade ve modüler bir mimari hedeflenmiştir.
+
+2.	Çalışmanın tasarım boyutunu açıklayınız. 
+Bu çalışma, literatürdeki versiyon kontrol konseptlerinden esinlenilmiş olsa da, mimari açısından tamamen yeni ve özgün bir tasarımdır. Mevcut bir projenin tekrarı veya kopyası değildir. Linux çekirdek modülü, dosya sistemi algoritmaları ve kullanıcı arayüzlerinin tamamı bu proje kapsamında sıfırdan geliştirilmiştir.
+
+3.	Bu çalışmada bir mühendislik problemini kendiniz formüle edip, çözdünüz mü?
+Evet. Standart Linux dosya sistemlerinin versiyon takibi yapamaması ve mevcut versiyonlama çözümlerinin (ZFS, Btrfs gibi) yüksek sistem kaynağı tüketmesi bir optimizasyon problemi olarak ele alınmıştır. Çözüm olarak; büyük sistemlerin karmaşıklığından arındırılmış, sadece gerekli özellikleri barındıran, Copy-on-Write tabanlı ve düşük kaynak tüketen özgün bir mimari geliştirilmiştir.
+
+4.	Çalışmada kullandığınız yöntemler nelerdir ve önceki derslerde edindiğiniz hangi bilgi ve becerileri kullandınız? Açıklayınız.
+İşletim sistemleri ve Veri yapıları ve algoritmalar derslerinden edindiğim bilgiler işime yaradı.
+
+5.	Kullandığınız veya dikkate aldığınız mühendislik standartları nelerdir?
+POSIX: Komut setinin standart Linux/Unix araçlarıyla uyumlu çalışması için.
+
+6.	Kulandığınız veya dikkate aldığınız gerçekçi kısıtlar nelerdir? Lütfen çalışmanıza uygun yanıtlarla doldurunuz.
+
+a)	Ekonomi 
+Tamamen açık kaynak araçlar kullanılarak maliyetsiz geliştirilmiştir.
+
+b) 	Çevre sorunları:
+Disk alanını verimli kullanmak adına "deduplication" (tekilleştirme) algoritmaları kullanılarak veri şişmesi ve gereksiz donanım ihtiyacı engellenmiştir.
+
+c) Sürdürülebilirlik:
+Sistem, Linux çekirdeğine modül olarak eklendiğinden, çekirdek güncellemelerinden minimum düzeyde etkilenir ve sürdürülebilirliği yüksektir.
+
+d) Üretilebilirlik:
+Standart derleme (Makefile) araçlarıyla her Linux dağıtımında derlenebilir yapıdadır.
+
+e) Etik:
+Başka projelerden kod kopyalanmamış, esinlenilen akademik çalışmalar ve algoritmalar kaynakçada belirtilmiştir.
+
+f) Sağlık:
+Herhangi bir sağlık kısıtı bulunmamaktadır.
+
+g) Güvenlik: 
+Linux dosya izin hiyerarşisine sadık kalınarak yetkisiz erişimler engellenmiştir.
+
+h) Sosyal ve politik sorunlar:
+Kullanıcıların veri kaybı endişesini azaltarak dijital çalışma konforuna katkı sağlar.
+
+
+
+
