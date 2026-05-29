@@ -26,7 +26,7 @@ Inside the Docker container, you can use the provided script to automatically bu
 ## Running the Components in QEMU
 
 Once the QEMU VM boots, you will be dropped into a root shell. 
-The compiled components are already placed directly into your PATH and `/root` directory inside the RAM disk.
+The compiled components are already placed directly into your PATH (`/bin`) and the `/root` directory inside the RAM disk.
 
 ### 1. Mounting the File System
 
@@ -41,8 +41,8 @@ insmod vcfs.ko
 # Format the test disk with VCFS (QEMU maps it to /dev/sda)
 mkfs.vcfs /dev/sda
 
-# Mount the filesystem
-mount -o loop -t vcfs /dev/sda /mnt
+# Mount the filesystem (without loop, as it is a block device)
+mount -t vcfs /dev/sda /mnt
 cd /mnt
 ```
 
@@ -54,7 +54,7 @@ The User-Space Daemon periodically scans the file system and performs Delta Comp
 # Start the daemon in the background
 vcfsd /mnt &
 
-# Check logs
+# Check logs (if necessary)
 dmesg
 ```
 
@@ -66,14 +66,23 @@ You can use the CLI tool to manage versions and the trash mechanism.
 # Check version status of a file
 vcfs status file.txt
 
-# View version history
+# View version history (includes file size and active version indicator)
 vcfs log file.txt
+
+# Compare two versions of a file
+vcfs diff file.txt 0 1
 
 # Checkout a previous version
 vcfs checkout file.txt <version_id>
 
-# Restore a deleted file from trash
-vcfs restore file.txt
+# List deleted files in the trash bin
+vcfs trash --list
+
+# Restore a deleted file from trash (Using the Inode Number from the list)
+vcfs restore <inode_no>
+
+# Permanently purge the trash bin
+vcfs trash --clean
 ```
 
 ### 4. Running the Native GUI

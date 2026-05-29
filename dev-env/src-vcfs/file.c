@@ -756,6 +756,7 @@ static long vcfs_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned lo
 
             versions[i].version_id = vcfs_INODE(curr_inode)->version_id;
             versions[i].timestamp = vcfs_INODE(curr_inode)->version_timestamp;
+            versions[i].size = curr_inode->i_size;
             versions[i].is_compressed = 0; /* stub for daemon */
 
             curr_ino = vcfs_INODE(curr_inode)->prev_version_inode;
@@ -818,6 +819,91 @@ static long vcfs_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned lo
         pr_info("vcfs: Daemon requested compression for version %u of inode %lu\n", args.version_id, inode->i_ino);
         /* In a full implementation, we'd find the historical inode and mark it compressed */
         return 0;
+    }
+    case VCFS_IOC_READ_VERSION: {
+        struct vcfs_ioctl_read_args args;
+        struct inode *hist_inode = NULL;
+        uint32_t curr_ino = ci->prev_version_inode;
+        struct super_block *sb = inode->i_sb;
+        struct buffer_head *bh;
+        struct vcfs_file_ei_block *ei_block;
+        size_t len;
+        loff_t pos = 0;
+        ssize_t bytes_read = 0;
+
+        if (copy_from_user(&args, (struct vcfs_ioctl_read_args __user *)arg, sizeof(args)))
+            return -EFAULT;
+
+        /* If target is current version */
+        if (args.version_id == ci->version_id) {
+            hist_inode = inode;
+            ihold(hist_inode);
+        } else {
+            /* Find historical inode */
+            while (curr_ino != 0) {
+                hist_inode = vcfs_iget(sb, curr_ino);
+                if (IS_ERR(hist_inode)) {
+                    hist_inode = NULL;
+                    break;
+                }
+                if (vcfs_INODE(hist_inode)->version_id == args.version_id)
+                    break; /* Found it */
+                
+                curr_ino = vcfs_INODE(hist_inode)->prev_version_inode;
+                iput(hist_inode);
+                hist_inode = NULL;
+            }
+        }
+
+        if (!hist_inode) return -ENOENT;
+
+        len = args.count;
+        if (len > hist_inode->i_size)
+            len = hist_inode->i_size;
+            
+        args.count = len; /* return actual readable size */
+
+        bh = sb_bread(sb, vcfs_INODE(hist_inode)->ei_block);
+        if (!bh) {
+            iput(hist_inode);
+            return -EIO;
+        }
+        ei_block = (struct vcfs_file_ei_block *) bh->b_data;
+
+        while (len > 0) {
+            sector_t block_index = pos / vcfs_BLOCK_SIZE;
+            sector_t ei_index = block_index / vcfs_MAX_BLOCKS_PER_EXTENT;
+            sector_t block_offset = ei_block->extents[ei_index].ee_start +
+                                    block_index % vcfs_MAX_BLOCKS_PER_EXTENT;
+
+            struct buffer_head *bh_data = sb_bread(sb, block_offset);
+            if (!bh_data) {
+                bytes_read = -EIO;
+                break;
+            }
+
+            size_t offset = pos % vcfs_BLOCK_SIZE;
+            size_t bytes_to_read = min_t(size_t, len, vcfs_BLOCK_SIZE - offset);
+
+            if (copy_to_user(args.buf + bytes_read, bh_data->b_data + offset, bytes_to_read)) {
+                brelse(bh_data);
+                bytes_read = -EFAULT;
+                break;
+            }
+            brelse(bh_data);
+
+            bytes_read += bytes_to_read;
+            len -= bytes_to_read;
+            pos += bytes_to_read;
+        }
+
+        brelse(bh);
+        iput(hist_inode);
+
+        if (copy_to_user((struct vcfs_ioctl_read_args __user *)arg, &args, sizeof(args)))
+            return -EFAULT;
+
+        return bytes_read >= 0 ? 0 : bytes_read;
     }
     default:
         return -ENOTTY;

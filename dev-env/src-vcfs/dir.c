@@ -110,7 +110,136 @@ release_bh:
     return ret;
 }
 
+#include "../vcfs-daemon/vcfs_ioctl.h"
+
+/* Forward declaration for functions defined in inode.c needed for trash restore */
+extern int vcfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry);
+
+static long vcfs_dir_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    struct inode *dir = file_inode(filp);
+    struct super_block *sb = dir->i_sb;
+    struct vcfs_sb_info *sbi = vcfs_SB(sb);
+    uint32_t i;
+
+    if (!S_ISDIR(dir->i_mode))
+        return -ENOTTY;
+
+    switch (cmd) {
+    case VCFS_IOC_GET_TRASH_COUNT: {
+        __u32 count = 0;
+        /* Scan all inodes in the filesystem */
+        for (i = 1; i < sbi->nr_inodes; i++) {
+            struct inode *tmp = vcfs_iget(sb, i);
+            if (!IS_ERR(tmp)) {
+                if (vcfs_INODE(tmp)->is_deleted == 1)
+                    count++;
+                iput(tmp);
+            }
+        }
+        if (copy_to_user((__u32 __user *)arg, &count, sizeof(__u32)))
+            return -EFAULT;
+        return 0;
+    }
+    case VCFS_IOC_GET_TRASH_LIST: {
+        struct vcfs_ioctl_trash_list_args args;
+        struct vcfs_ioctl_trash_info *list;
+        __u32 count = 0;
+
+        if (copy_from_user(&args, (void __user *)arg, sizeof(args)))
+            return -EFAULT;
+
+        list = kmalloc_array(args.count, sizeof(struct vcfs_ioctl_trash_info), GFP_KERNEL);
+        if (!list && args.count > 0) return -ENOMEM;
+
+        for (i = 1; i < sbi->nr_inodes && count < args.count; i++) {
+            struct inode *tmp = vcfs_iget(sb, i);
+            if (!IS_ERR(tmp)) {
+                if (vcfs_INODE(tmp)->is_deleted == 1) {
+                    list[count].inode_no = tmp->i_ino;
+                    list[count].size = tmp->i_size;
+                    list[count].delete_timestamp = vcfs_INODE(tmp)->version_timestamp;
+                    strncpy(list[count].filename, vcfs_INODE(tmp)->i_data, 31);
+                    list[count].filename[31] = '\0';
+                    count++;
+                }
+                iput(tmp);
+            }
+        }
+
+        if (count > 0 && copy_to_user(args.items, list, count * sizeof(struct vcfs_ioctl_trash_info))) {
+            kfree(list);
+            return -EFAULT;
+        }
+        kfree(list);
+
+        args.count = count;
+        if (copy_to_user((void __user *)arg, &args, sizeof(args)))
+            return -EFAULT;
+            
+        return 0;
+    }
+    case VCFS_IOC_RESTORE_TRASH: {
+        __u32 target_ino;
+        struct inode *target_inode;
+        struct dentry *dentry;
+        int err = 0;
+
+        if (copy_from_user(&target_ino, (__u32 __user *)arg, sizeof(__u32)))
+            return -EFAULT;
+
+        target_inode = vcfs_iget(sb, target_ino);
+        if (IS_ERR(target_inode))
+            return PTR_ERR(target_inode);
+
+        if (vcfs_INODE(target_inode)->is_deleted != 1) {
+            iput(target_inode);
+            return -EINVAL; /* Not in trash */
+        }
+
+        inode_lock(dir);
+        
+        /* Create a dentry manually for the link operation */
+        dentry = d_alloc_name(filp->f_path.dentry, vcfs_INODE(target_inode)->i_data);
+        if (dentry) {
+            /* Create link in current directory */
+            extern int vcfs_link_inode(struct inode *old_inode, struct inode *dir, struct dentry *dentry);
+            err = vcfs_link_inode(target_inode, dir, dentry);
+            if (!err) {
+                vcfs_INODE(target_inode)->is_deleted = 0;
+                mark_inode_dirty(target_inode);
+            }
+            dput(dentry);
+        } else {
+            err = -ENOMEM;
+        }
+
+        inode_unlock(dir);
+        iput(target_inode);
+        return err;
+    }
+    case VCFS_IOC_CLEAN_TRASH: {
+        /* Iterate and permanently delete items. For POC, we just reset their metadata block references */
+        for (i = 1; i < sbi->nr_inodes; i++) {
+            struct inode *tmp = vcfs_iget(sb, i);
+            if (!IS_ERR(tmp)) {
+                if (vcfs_INODE(tmp)->is_deleted == 1) {
+                    /* Permanent deletion logic goes here */
+                    vcfs_INODE(tmp)->is_deleted = 2; /* Mark as permanently purged */
+                    mark_inode_dirty(tmp);
+                }
+                iput(tmp);
+            }
+        }
+        return 0;
+    }
+    default:
+        return -ENOTTY;
+    }
+}
+
 const struct file_operations vcfs_dir_ops = {
     .owner = THIS_MODULE,
     .iterate_shared = vcfs_iterate,
+    .unlocked_ioctl = vcfs_dir_ioctl,
 };

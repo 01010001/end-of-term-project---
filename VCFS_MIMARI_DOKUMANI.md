@@ -58,9 +58,11 @@ Teknik kullanıcıların (sistem yöneticileri, yazılımcılar vb.) dosya geçm
   Uygulama, Linux otomasyon script'leriyle (bash, awk vb.) uyumlu çalışabilmesi için saf C dilinde yazılmıştır.
 * **Bileşen Komutları (Sub-commands):**
   * `cmd_status`: `open()` ile alınan File Descriptor üzerinden Kernel'e `VCFS_IOC_GET_VERSION_COUNT` ioctl sinyali gönderir.
-  * `cmd_log`: Kernel içerisinden dönen binary array verisini ( `struct vcfs_ioctl_version_info` ), User-Space tarafında `malloc` ile karşılar ve zaman damgasını (timestamp) `localtime()` kullanarak insan tarafından okunabilir bir formata çevirir.
+  * `cmd_log`: Kernel içerisinden dönen binary array verisini ( `struct vcfs_ioctl_version_info` ), User-Space tarafında `malloc` ile karşılar. Dosya boyutu ve tarih bilgilerini formatlayarak kullanıcıya tablo halinde sunar. Aktif (güncel) versiyonu ayrıca belirtir.
   * `cmd_checkout`: `VCFS_IOC_CHECKOUT_VERSION` ioctl sinyali ile doğrudan Kernel'e hedef ID'yi iletir. (Kernel tarafında `file.c` içerisindeki `vcfs_unlocked_ioctl` bu sinyali yakalayıp inode swap işlemini yapar).
-  * `cmd_restore`: Çöp kutusu yapısındaki dosyaları kurtarmak için Parent Directory üzerinden IOCTL çağrısı ( `VCFS_IOC_RESTORE_TRASH` ) yaparak VFS'teki dizin (dentry) kaydını yeniden oluşturur.
+  * `cmd_diff`: İki farklı versiyonu `VCFS_IOC_READ_VERSION` IOCTL'i ile kernel üzerinden 4KB'lık veri blokları halinde okur, geçici dosyalara (temp file) aktarır ve sistemdeki yerleşik `diff` komutunu kullanarak iki sürüm arasındaki farkı konsola yazdırır.
+  * `cmd_trash`: Dizin (Directory) seviyesinde açılan dosya tanımlayıcısı ile `VCFS_IOC_GET_TRASH_LIST` veya `VCFS_IOC_CLEAN_TRASH` çağrılarını tetikler. Kernel, inode tablosunu tarayarak `is_deleted == 1` bayrağı taşıyan ve orijinal dosya adını koruyan kayıtları kullanıcıya liste olarak sunar.
+  * `cmd_restore`: Hedeflenen çöp dosyasına ait Inode numarasını alarak `VCFS_IOC_RESTORE_TRASH` çağrısı yapar. Kernel, dizin bloğuna (dentry) bu inode numarasını ve orijinal dosya adını tekrar bağlayarak (link_inode) silinmiş dosyayı geri getirir.
 
 ---
 
@@ -83,4 +85,23 @@ Terminal kullanmayı bilmeyen veya tercih etmeyen normal kullanıcılar için ge
 ---
 
 ## Sonuç Özeti
-Bu proje mimarisi ile sıradan bir ext4/fat sisteminin üzerine katman eklemek yerine; "Inode tabanlı geçmiş zinciri" (Linked-list Inode) ve "Alan Paylaşımlı" (Copy-on-Write) mekanizmaları **doğrudan çekirdek (kernel) içine yedirilmiştir.** İşlemciyi yoran sıkıştırma (compression) süreci arka plana (Daemon) atılarak darboğazlar engellenmiş; CLI ve GTK GUI sayesinde her türden kullanıcının sisteme rahatça erişebilmesi garanti altına alınmıştır. 
+Bu proje mimarisi ile sıradan bir ext4/fat sisteminin üzerine katman eklemek yerine; "Inode tabanlı geçmiş zinciri" (Linked-list Inode) ve "Alan Paylaşımlı" (Copy-on-Write) mekanizmaları **doğrudan çekirdek (kernel) içine yedirilmiştir.** İşlemciyi yoran sıkıştırma (compression) süreci arka plana (Daemon) atılarak darboğazlar engellenmiş; CLI ve GTK GUI sayesinde her türden kullanıcının sisteme rahatça erişebilmesi garanti altına alınmıştır.
+
+---
+
+## 5. Yaşanan Problemler ve Çözümleri
+
+Geliştirme ve test süreçlerinde karşılaşılan başlıca teknik zorluklar ve bu zorluklara getirilen köklü çözümler aşağıda listelenmiştir:
+
+* **Initramfs ve QEMU Mount Sorunları:** 
+  İlk mimaride, çekirdek modülleri ve CLI araçları harici bir ext2 disk imajı (`modules.img`) üzerinden QEMU sanal makinesine aktarılıyordu. Ancak QEMU'nun minimalist yapısı nedeniyle bu imajın bağlanması (mount) sırasında "Invalid argument" ve "Not a directory" hataları alındı. Çözüm olarak, test betiği (`qemu-setup.sh`) tamamen revize edildi ve derlenen modüller doğrudan QEMU'nun RAM diskine (initramfs) gömüldü. Bu sayede harici disklere olan bağımlılık ortadan kalktı.
+* **Derleme ve Tip Tanımlaması Eksiklikleri:** 
+  Kullanıcı alanı (User-Space) olan CLI aracı derlenirken `__u32` gibi çekirdek tipleri tanınmadığı için hata alındı. `<linux/types.h>` kütüphanesinin CLI arayüzüne dahil edilmesiyle bu sorun aşıldı. Ayrıca çekirdek seviyesindeki `implicit declaration` hatalarını çözmek için `bitmap.h` eklendi.
+* **Epoch Zaman (1970) ve Boş Snapshot Mantıksal Hatası (Timestamp & Empty Snapshot Bug):** 
+  Yeni oluşturulan bir dosya kaydedildiğinde, `version_timestamp` değerinin set edilmesi unutulduğu için ilk versiyonun tarihi UNIX Epoch (1 Ocak 1970) olarak görünüyordu. Ayrıca, dosya ilk kez oluşturulmak üzere açıldığında, henüz içi boşken (0 byte) anlık görüntüsü alınıyordu. Çekirdekteki `vcfs_create_version` mantığı `if (ci->version_id == 0 && inode->i_size == 0) return 0;` şartı ile güncellenerek gereksiz boş snapshot oluşumu engellendi ve zaman damgası güncellemeleri düzeltildi.
+* **Çöp Kutusu (Trash) Eviction Hatası:** 
+  Bir dosya `rm` komutu ile dizinden silindiğinde, standart Linux VFS mimarisi `i_nlink` (bağlantı sayısı) sıfıra düştüğü an inode'u ve veri bloklarını fiziksel olarak tamamen siliyordu (`evict_inode`). Bu nedenle `vcfs trash --list` boş dönüyordu. Çözüm olarak `vcfs_unlink` fonksiyonuna müdahale edildi; dosya dizinden koparıldı ancak `i_nlink` sıfıra indirilmedi ve sadece `is_deleted = 1` bayrağı set edildi. Böylece VFS'in Trash'teki dosyaları imha etmesi Kernel seviyesinde engellendi.
+* **CLI Restore Komutu Argüman Uyuşmazlığı:** 
+  Silinen dosyalar mevcut dizin ağacında bulunmadığı için dosya adı (filename) üzerinden değil, Inode Numarası üzerinden geri yüklenmeliydi (örn: `vcfs restore 3`). CLI'ın yardım menüsünde yanlışlıkla `<dosya_yolu>` parametresi istendiği belirtildiği için kullanıcılar "Invalid argument" hatası yaşıyordu. CLI parametre kontrol mekanizması düzeltilerek menü uyumlu hale getirildi.
+* **QEMU ve Busybox Autocomplete Kısıtlaması:** 
+  Kullanıcı, CLI komutları için (örn: `vcfs c` -> `checkout`) tab ile otomatik tamamlama (autocomplete) beklemekteydi. Ancak QEMU içindeki hafif siklet Busybox `ash` kabuğu (shell), standart Bash'teki alt-komut tamamlama (bash-completion) eklentisine sahip değildir. Bu nedenle tamamlama yalnızca ana program isimlerinde çalışır, bu durum bir hata değil ortam kısıtlamasıdır.

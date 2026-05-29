@@ -657,28 +657,17 @@ release_bh:
 static int vcfs_unlink(struct inode *dir, struct dentry *dentry)
 {
     struct super_block *sb = dir->i_sb;
-    struct vcfs_sb_info *sbi = vcfs_SB(sb);
     struct inode *inode = d_inode(dentry);
-    struct buffer_head *bh = NULL, *bh2 = NULL;
-    struct vcfs_file_ei_block *file_block = NULL;
-    char *block;
 #if vcfs_AT_LEAST(6, 6, 0) && vcfs_LESS_EQUAL(6, 7, 0)
     struct timespec64 cur_time;
 #endif
-    int ei = 0, bi = 0;
     int ret = 0;
-
-    uint32_t ino = inode->i_ino;
-    uint32_t bno = 0;
 
     ret = vcfs_remove_from_dir(dir, dentry);
     if (ret != 0)
         return ret;
 
-    if (S_ISLNK(inode->i_mode))
-        goto clean_inode;
-
-        /* Update inode stats */
+    /* Update dir stats */
 #if vcfs_AT_LEAST(6, 7, 0)
     simple_inode_init_ts(dir);
 #elif vcfs_AT_LEAST(6, 6, 0)
@@ -700,40 +689,20 @@ static int vcfs_unlink(struct inode *dir, struct dentry *dentry)
         return ret;
     }
 
-    /* Do not clean up pointed blocks when unlinking a file for VCFS.
-     * We just mark it as deleted (Trash mechanism).
+    if (S_ISLNK(inode->i_mode)) {
+        inode_dec_link_count(inode);
+        return ret;
+    }
+
+    /* VCFS Trash Mechanism: Instead of setting nlink to 0, 
+     * we keep it at 1 to prevent VFS from automatically destroying the inode 
+     * and its blocks. We just mark it as deleted.
      */
-    bno = vcfs_INODE(inode)->ei_block;
-    bh = sb_bread(sb, bno);
-    if (!bh)
-        goto clean_inode;
-    file_block = (struct vcfs_file_ei_block *) bh->b_data;
-
     vcfs_INODE(inode)->is_deleted = 1;
-
-    brelse(bh);
-
-clean_inode:
-    /* Cleanup inode and mark dirty */
-    i_uid_write(inode, 0);
-    i_gid_write(inode, 0);
-
-#if vcfs_AT_LEAST(6, 7, 0)
-    inode_set_mtime(inode, 0, 0);
-    inode_set_atime(inode, 0, 0);
-    inode_set_ctime(inode, 0, 0);
-#elif vcfs_AT_LEAST(6, 6, 0)
-    inode->i_mtime.tv_sec = inode->i_atime.tv_sec = 0;
-    inode_set_ctime(inode, 0, 0);
-#else
-    inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec = 0;
-#endif
-
-    inode_dec_link_count(inode);
+    strncpy(vcfs_INODE(inode)->i_data, dentry->d_name.name, 31);
+    vcfs_INODE(inode)->i_data[31] = '\0';
     mark_inode_dirty(inode);
-
-    /* Do NOT free inode and index block from bitmap for trash mechanism */
-
+    
     return ret;
 }
 
@@ -982,11 +951,8 @@ static int vcfs_rmdir(struct inode *dir, struct dentry *dentry)
     return vcfs_unlink(dir, dentry);
 }
 
-static int vcfs_link(struct dentry *old_dentry,
-                         struct inode *dir,
-                         struct dentry *dentry)
+int vcfs_link_inode(struct inode *old_inode, struct inode *dir, struct dentry *dentry)
 {
-    struct inode *old_inode = d_inode(old_dentry);
     struct super_block *sb = old_inode->i_sb;
     struct vcfs_inode_info *ci_dir = vcfs_INODE(dir);
     struct vcfs_file_ei_block *eblock = NULL;
@@ -1071,8 +1037,17 @@ end:
     return ret;
 }
 
+static int vcfs_link(struct dentry *old_dentry,
+                         struct inode *dir,
+                         struct dentry *dentry)
+{
+    struct inode *old_inode = d_inode(old_dentry);
+    return vcfs_link_inode(old_inode, dir, dentry);
+}
+
 #if vcfs_AT_LEAST(6, 3, 0)
 static int vcfs_symlink(struct mnt_idmap *id,
+
                             struct inode *dir,
                             struct dentry *dentry,
                             const char *symname)
