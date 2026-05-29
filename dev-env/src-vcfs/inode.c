@@ -309,12 +309,15 @@ static struct inode *vcfs_new_inode(struct inode *dir, mode_t mode)
 
 #if vcfs_AT_LEAST(6, 7, 0)
     simple_inode_init_ts(inode);
+    ci->version_timestamp = current_time(inode).tv_sec;
 #elif vcfs_AT_LEAST(6, 6, 0)
     cur_time = current_time(inode);
     inode->i_atime = inode->i_mtime = cur_time;
     inode_set_ctime_to_ts(inode, cur_time);
+    ci->version_timestamp = cur_time.tv_sec;
 #else
     inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
+    ci->version_timestamp = current_time(inode).tv_sec;
 #endif
 
     return inode;

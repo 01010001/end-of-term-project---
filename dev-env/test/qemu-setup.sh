@@ -29,7 +29,7 @@ mkdir -p "$INITRAMFS_DIR"/{bin,dev,proc,sys,mnt,root,lib64}
 cp /usr/sbin/busybox "$INITRAMFS_DIR/bin/busybox"
 
 cd "$INITRAMFS_DIR/bin"
-for cmd in sh mount mkdir ls cat echo uname ln insmod rmmod lsmod dmesg poweroff clear sleep vi; do
+for cmd in sh mount mkdir ls cat echo uname ln insmod rmmod lsmod dmesg poweroff clear sleep vi rm mv cp touch pwd grep tail head less more; do
     ln -sf busybox $cmd
 done
 

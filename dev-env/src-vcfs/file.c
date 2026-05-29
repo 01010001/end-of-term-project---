@@ -322,12 +322,15 @@ static int vcfs_write_end(struct file *file,
     cur_time = current_time(inode);
     inode_set_mtime_to_ts(inode, cur_time);
     inode_set_ctime_to_ts(inode, cur_time);
+    ci->version_timestamp = cur_time.tv_sec;
 #elif vcfs_AT_LEAST(6, 6, 0)
     cur_time = current_time(inode);
     inode->i_mtime = cur_time;
     inode_set_ctime_to_ts(inode, cur_time);
+    ci->version_timestamp = cur_time.tv_sec;
 #else
     inode->i_mtime = inode->i_ctime = current_time(inode);
+    ci->version_timestamp = current_time(inode).tv_sec;
 #endif
 
     mark_inode_dirty(inode);
@@ -390,6 +393,10 @@ static int vcfs_create_version(struct inode *inode)
 
     /* Only version regular files that have some data or metadata */
     if (!S_ISREG(inode->i_mode))
+        return 0;
+
+    /* Do not create an empty snapshot for a brand new file */
+    if (ci->version_id == 0 && inode->i_size == 0)
         return 0;
 
     hist_ino = get_free_inode(sbi);
@@ -728,33 +735,31 @@ static long vcfs_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned lo
 
     switch (cmd) {
     case VCFS_IOC_GET_VERSION_COUNT: {
-        __u32 count = ci->version_id;
+        __u32 count = ci->version_id + 1; /* Include current version */
         if (copy_to_user((__u32 __user *)arg, &count, sizeof(__u32)))
             return -EFAULT;
         return 0;
     }
     case VCFS_IOC_GET_VERSIONS: {
-        __u32 count = ci->version_id;
+        __u32 count = ci->version_id + 1;
         struct vcfs_ioctl_version_info *versions;
         struct super_block *sb = inode->i_sb;
-        uint32_t curr_ino = ci->prev_version_inode;
+        uint32_t curr_ino = inode->i_ino; /* Start from active inode */
         __u32 i = 0;
-
-        if (count == 0) return 0;
 
         versions = kmalloc_array(count, sizeof(struct vcfs_ioctl_version_info), GFP_KERNEL);
         if (!versions) return -ENOMEM;
 
         while (curr_ino != 0 && i < count) {
-            struct inode *hist_inode = vcfs_iget(sb, curr_ino);
-            if (IS_ERR(hist_inode)) break;
+            struct inode *curr_inode = vcfs_iget(sb, curr_ino);
+            if (IS_ERR(curr_inode)) break;
 
-            versions[i].version_id = vcfs_INODE(hist_inode)->version_id;
-            versions[i].timestamp = vcfs_INODE(hist_inode)->version_timestamp;
+            versions[i].version_id = vcfs_INODE(curr_inode)->version_id;
+            versions[i].timestamp = vcfs_INODE(curr_inode)->version_timestamp;
             versions[i].is_compressed = 0; /* stub for daemon */
 
-            curr_ino = vcfs_INODE(hist_inode)->prev_version_inode;
-            iput(hist_inode);
+            curr_ino = vcfs_INODE(curr_inode)->prev_version_inode;
+            iput(curr_inode);
             i++;
         }
 

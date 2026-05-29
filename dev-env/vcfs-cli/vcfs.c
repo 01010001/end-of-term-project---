@@ -89,9 +89,9 @@ int cmd_log(const char *filepath) {
     }
 
     printf("Versiyon Geçmişi: %s\n", filepath);
-    printf("------------------------------------------------------\n");
-    printf("Versiyon ID | Tarih               | Sıkıştırılmış mı?\n");
-    printf("------------------------------------------------------\n");
+    printf("------------------------------------------------------------------------\n");
+    printf("Versiyon ID | Tarih               | Sıkıştırılmış mı? | Durum\n");
+    printf("------------------------------------------------------------------------\n");
 
     for (__u32 i = 0; i < count; i++) {
         time_t ts = versions[i].timestamp;
@@ -99,10 +99,11 @@ int cmd_log(const char *filepath) {
         char time_buf[26];
         strftime(time_buf, 26, "%Y-%m-%d %H:%M:%S", tm_info);
 
-        printf("v%-10u | %-19s | %s\n", 
+        printf("v%-10u | %-19s | %-17s | %s\n", 
             versions[i].version_id, 
             time_buf, 
-            versions[i].is_compressed ? "Evet" : "Hayır");
+            versions[i].is_compressed ? "Evet" : "Hayır",
+            (i == 0) ? "* Aktif Versiyon *" : "");
     }
 
     free(versions);
@@ -168,27 +169,38 @@ int cmd_restore(const char *filepath) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
+    if (argc < 2) {
         print_usage();
         return EXIT_FAILURE;
     }
 
     const char *command = argv[1];
-    const char *filepath = argv[2];
 
     if (strcmp(command, "status") == 0) {
-        return cmd_status(filepath);
+        if (argc < 3) {
+            printf("Hata: Eksik argüman.\nKullanım: vcfs status <dosya_yolu>\n");
+            return EXIT_FAILURE;
+        }
+        return cmd_status(argv[2]);
     } else if (strcmp(command, "log") == 0) {
-        return cmd_log(filepath);
+        if (argc < 3) {
+            printf("Hata: Eksik argüman.\nKullanım: vcfs log <dosya_yolu>\n");
+            return EXIT_FAILURE;
+        }
+        return cmd_log(argv[2]);
     } else if (strcmp(command, "checkout") == 0) {
         if (argc < 4) {
-            printf("Hata: Checkout için bir versiyon numarası girmelisiniz.\n");
+            printf("Hata: Eksik argüman.\nKullanım: vcfs checkout <dosya_yolu> <versiyon_id>\n");
             return EXIT_FAILURE;
         }
         __u32 version = (__u32)atoi(argv[3]);
-        return cmd_checkout(filepath, version);
+        return cmd_checkout(argv[2], version);
     } else if (strcmp(command, "restore") == 0) {
-        return cmd_restore(filepath);
+        if (argc < 3) {
+            printf("Hata: Eksik argüman.\nKullanım: vcfs restore <dosya_yolu>\n");
+            return EXIT_FAILURE;
+        }
+        return cmd_restore(argv[2]);
     } else {
         printf("Hata: Bilinmeyen komut '%s'\n", command);
         print_usage();
