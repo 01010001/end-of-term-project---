@@ -4,6 +4,10 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
+#ifndef __user
+#define __user
+#endif
+
 #define VCFS_IOCTL_MAGIC 'v'
 
 /* IOCTL to get the number of versions for a given file */

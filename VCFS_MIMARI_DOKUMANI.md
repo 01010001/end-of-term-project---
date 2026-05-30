@@ -84,12 +84,29 @@ Terminal kullanmayı bilmeyen veya tercih etmeyen normal kullanıcılar için ge
 
 ---
 
-## Sonuç Özeti
-Bu proje mimarisi ile sıradan bir ext4/fat sisteminin üzerine katman eklemek yerine; "Inode tabanlı geçmiş zinciri" (Linked-list Inode) ve "Alan Paylaşımlı" (Copy-on-Write) mekanizmaları **doğrudan çekirdek (kernel) içine yedirilmiştir.** İşlemciyi yoran sıkıştırma (compression) süreci arka plana (Daemon) atılarak darboğazlar engellenmiş; CLI ve GTK GUI sayesinde her türden kullanıcının sisteme rahatça erişebilmesi garanti altına alınmıştır.
+## 5. Proje Kapsamında Simüle Edilen ve Eksik Kalan Özellikler (Tez Karşılaştırması)
+
+Tez dokümanında (`project-documentation`) önerilen mimari ile geliştirilen projenin güncel durumu büyük oranda uyuşmaktadır (Copy-on-Write, Inode bazlı versiyonlama, VFS entegrasyonu, Native GTK3 GUI vb.). Ancak süre/kapsam kısıtları nedeniyle bazı özellikler simüle edilmiş (mock) veya eksik bırakılmıştır:
+
+**CLI Gelişmiş Özellik Eksikleri (Tez Bölüm 3.5.3):**
+*   **Dışa Aktarma (Export):** Belirli bir versiyonun proje dizini dışına harici bir dosya olarak aktarılması (Örn: `vcfs export`) komutu henüz CLI'a eklenmemiştir.
+*   **Farklı Dosyaları Kıyaslama:** Uygulanan `vcfs diff` aracı yalnızca **aynı dosyanın** iki farklı versiyonunu kıyaslamaktadır. Farklı isimdeki iki dosyanın geçmişini doğrudan kıyaslayan bir komut mevcut değildir.
+*   **Yapılandırma Altyapısı:** Sistemin çalışma davranışları (otomatik kayıt aralığı, versiyon saklama politikaları vb.) şu an için dinamik bir yapılandırma dosyasından (config) okunamamaktadır.
+
+**GUI Görsel ve Fonksiyonel Eksikleri (Tez Bölüm 3.6):**
+*   **İkonlar ve Temsiller:** Sol panelde versiyonlanmış dosyaları ayırt eden "özel ikonlar" ve orta panelde (Timeline) desteklenen dosya tipleri için "küçük resim (thumbnail)" gösterimi arayüze eklenmemiştir.
+*   **Renkli Diff (Syntax Highlighting):** Diff ekranında eski ve yeni kodlar yan yana getirilmiştir ancak "Eklenen satırlar yeşil, silinen satırlar kırmızı" şeklinde bir renklendirme altyapısı bulunmamaktadır.
+*   **Çöp Kutusu Politika Ayarları:** Çöp kutusunun ne kadar süre sonra kendini temizleyeceğini ayarlayan (Otomatik temizleme politikası) bir GUI menüsü tasarlanmamıştır.
+
+**Çöp Kutusu Metadata Eksikliği (Tez Bölüm 3.4.7):**
+*   Tezde silinen dosya için "işlemi yapan kullanıcı (UID)" bilgisinin de saklanacağı belirtilmiştir. Ancak mevcut `is_deleted` bayrağı ve `vcfs_ioctl_trash_info` yapısında kullanıcı verisi saklanmamakta; yalnızca Inode No, Boyut, Tarih ve Dosya Adı tutulmaktadır.
+
+**Delta Compression (Sıkıştırma) Simülasyonu (Tez Bölüm 3.3.3):**
+*   Arka planda çalışan `vcfsd` Daemon servisi, dosya ağacını tarayıp çok versiyonlu dosyaları tespit eden ve Kernel'e bildiren (`VCFS_IOC_COMPRESS_VERSION`) tüm IOCTL altyapısına sahiptir. Ancak verinin gerçekten "zlib" ile sıkıştırılıp diske yazıldığı son adım POC (Proof of Concept) kapsamında **simüle edilmiş** ve sadece konsola log basılmıştır.
 
 ---
 
-## 5. Yaşanan Problemler ve Çözümleri
+## 6. Yaşanan Problemler ve Çözümleri
 
 Geliştirme ve test süreçlerinde karşılaşılan başlıca teknik zorluklar ve bu zorluklara getirilen köklü çözümler aşağıda listelenmiştir:
 
@@ -105,3 +122,5 @@ Geliştirme ve test süreçlerinde karşılaşılan başlıca teknik zorluklar v
   Silinen dosyalar mevcut dizin ağacında bulunmadığı için dosya adı (filename) üzerinden değil, Inode Numarası üzerinden geri yüklenmeliydi (örn: `vcfs restore 3`). CLI'ın yardım menüsünde yanlışlıkla `<dosya_yolu>` parametresi istendiği belirtildiği için kullanıcılar "Invalid argument" hatası yaşıyordu. CLI parametre kontrol mekanizması düzeltilerek menü uyumlu hale getirildi.
 * **QEMU ve Busybox Autocomplete Kısıtlaması:** 
   Kullanıcı, CLI komutları için (örn: `vcfs c` -> `checkout`) tab ile otomatik tamamlama (autocomplete) beklemekteydi. Ancak QEMU içindeki hafif siklet Busybox `ash` kabuğu (shell), standart Bash'teki alt-komut tamamlama (bash-completion) eklentisine sahip değildir. Bu nedenle tamamlama yalnızca ana program isimlerinde çalışır, bu durum bir hata değil ortam kısıtlamasıdır.
+* **Host (Yeni Kernel) Makinede GUI Derleme ve IOCTL Header Hataları:**
+  Arayüzü (GTK3) ana makinede test ederken, çekirdek (kernel) ve kullanıcı alanının (user-space) paylaştığı `vcfs_ioctl.h` içerisindeki `__user` makrosu gcc tarafından tanınmadığı için derleme hatası fırlattı. Ayrıca Kernel 7 sürümünde `mount_bdev` API'si tamamen kaldırıldığı için Kernel modülü Host makinede derlenemedi. Bu sorunları aşmak için `vcfs_ioctl.h` başına bir dummy define (`#ifndef __user \n #define __user \n #endif`) eklenerek GUI'nin Host makinede sorunsuz derlenip "Mockup" (Sahte Veri) modunda çalışması sağlandı.

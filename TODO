@@ -86,3 +86,21 @@ vcfs komutu yazıldığında tab ile basıldığında komutun geri kalanı autoc
 
 
 var olan docker/qemu ortamında çalışıyor fakat bu sistemin gerçek linux sistemleri üzerinde de çalışmasını sağlayacak pipeline oluşturulmalı.
+
+
+bunlar ilginç, öğrenmek isterim:
+
+ 2. Olasılık: QEMU'yu Grafik Arayüzü ile (VGA Modunda) Başlatmak
+  Eğer GUI'yi, modülün gerçekten çalıştığı ortamla test etmek istiyorsan, QEMU'yu siyah ekran (nographic) yerine kendi penceresiyle açılacak şekilde
+  başlatabiliriz. Ancak bu senaryoda QEMU'nun kullandığımız "initramfs" yapısının içinde bir "X Server" veya "Wayland" (Görüntü yöneticisi) ve GTK
+  kütüphanelerinin olması gerekir. Bizim oluşturduğumuz RAM Disk'te (Busybox) bunlar bulunmuyor.
+
+  Ne yapmalısın?
+  Eğer bu yöntemi seçersen, Docker'ın oluşturduğu o minik RAM disk yerine, içine tam teşekküllü bir Ubuntu Desktop veya Fedora Workstation imajı koymamız
+  gerekir. Bu çok yavaşlatıcı bir çözümdür, bu yüzden tavsiye etmem.
+
+  3. Olasılık: SSH ve X11 Forwarding (Çok Gelişmiş, Tavsiye Edilmez)
+  QEMU'ya SSH ile bağlanıp (X11 Forwarding), QEMU'nun içinde çalışan GTK uygulamasının penceresini Host (Fedora 44) makinenize yansıtabilirsiniz. Ancak
+  bu da QEMU'nun içinde GTK kütüphanelerinin yüklü olmasını (2. Olasılık) gerektireceği için şu anki "Busybox" kurulumumuzla çalışmaz.
+
+
