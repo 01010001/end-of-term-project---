@@ -36,6 +36,7 @@ struct vcfs_ioctl_trash_info {
     __u32 inode_no;
     __u32 delete_timestamp;
     __u32 size;
+    __u32 uid; /* İşlemi yapan kullanıcı UID'si eklendi */
     char filename[32];
 };
 

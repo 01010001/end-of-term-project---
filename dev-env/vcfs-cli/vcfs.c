@@ -28,6 +28,7 @@ struct vcfs_ioctl_trash_info {
     __u32 inode_no;
     __u32 delete_timestamp;
     __u32 size;
+    __u32 uid;
     char filename[32];
 };
 
@@ -53,10 +54,121 @@ void print_usage() {
     printf("Kullanım:\n");
     printf("  vcfs log <dosya_yolu>                   : Dosyanın tüm versiyon tarihçesini listeler (ID, Tarih, Boyut).\n");
     printf("  vcfs checkout <dosya_yolu> <v_id>       : Dosyayı belirtilen versiyon ID'sine geri döndürür.\n");
-    printf("  vcfs diff <dosya_yolu> <v_id1> <v_id2>  : İki versiyon arasındaki farkları gösterir.\n");
+    printf("  vcfs diff <dosya_yolu> <v_id1> <v_id2>  : Aynı dosyanın iki versiyonu arasındaki farkları gösterir.\n");
+    printf("  vcfs diff-files <d1> <v1> <d2> <v2>     : Farklı iki dosyanın versiyonlarını karşılaştırır.\n");
+    printf("  vcfs export <dosya> <v_id> <hedef_yol>  : Belirli bir versiyonu dışa aktarır (çıktı dosyasına kaydeder).\n");
     printf("  vcfs restore <inode_no>                 : Silinmiş bir dosyayı çöp kutusundan geri yükler (Inode No ile).\n");
     printf("  vcfs trash --list / --clean             : Çöp kutusundaki dosyaları listeler veya temizler.\n");
     printf("  vcfs status <dosya_yolu>                : Dosyanın anlık durumu ve korunma durumu hakkında bilgi verir.\n");
+    printf("  vcfs config <key> [value]               : VCFS yapılandırmasını okur veya yazar.\n");
+}
+
+int cmd_export(const char *filepath, __u32 version_id, const char *destpath) {
+    int fd = open(filepath, O_RDONLY);
+    if (fd < 0) {
+        perror("Kaynak dosya açılamadı");
+        return -1;
+    }
+
+    int dest_fd = open(destpath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (dest_fd < 0) {
+        perror("Hedef dosya açılamadı veya oluşturulamadı");
+        close(fd);
+        return -1;
+    }
+
+    char *buf = malloc(4096);
+    struct vcfs_ioctl_read_args args;
+    args.version_id = version_id;
+    args.buf = buf;
+    args.count = 4096;
+
+    if (ioctl(fd, VCFS_IOC_READ_VERSION, &args) == 0 && args.count > 0) {
+        write(dest_fd, buf, args.count);
+        printf("Başarılı: Versiyon v%u, '%s' dosyasına aktarıldı.\n", version_id, destpath);
+    } else {
+        printf("Hata: Versiyon verisi okunamadı.\n");
+    }
+
+    free(buf);
+    close(dest_fd);
+    close(fd);
+    return 0;
+}
+
+int cmd_diff_files(const char *f1_path, __u32 v1, const char *f2_path, __u32 v2) {
+    int fd1 = open(f1_path, O_RDONLY);
+    int fd2 = open(f2_path, O_RDONLY);
+    if (fd1 < 0 || fd2 < 0) {
+        perror("Dosyalardan biri veya her ikisi açılamadı");
+        if (fd1 >= 0) close(fd1);
+        if (fd2 >= 0) close(fd2);
+        return -1;
+    }
+
+    char tmp1[64], tmp2[64];
+    snprintf(tmp1, sizeof(tmp1), "/tmp/vcfs_diff1_v%u", v1);
+    snprintf(tmp2, sizeof(tmp2), "/tmp/vcfs_diff2_v%u", v2);
+
+    int out1 = open(tmp1, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int out2 = open(tmp2, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (out1 < 0 || out2 < 0) {
+        perror("Geçici dosyalar oluşturulamadı");
+        goto cleanup;
+    }
+
+    char *buf = malloc(4096);
+    struct vcfs_ioctl_read_args args;
+    
+    args.version_id = v1;
+    args.buf = buf;
+    args.count = 4096;
+    if (ioctl(fd1, VCFS_IOC_READ_VERSION, &args) == 0 && args.count > 0)
+        write(out1, buf, args.count);
+
+    args.version_id = v2;
+    args.buf = buf;
+    args.count = 4096;
+    if (ioctl(fd2, VCFS_IOC_READ_VERSION, &args) == 0 && args.count > 0)
+        write(out2, buf, args.count);
+
+    close(out1);
+    close(out2);
+    free(buf);
+
+    printf("Diff for %s (v%u) vs %s (v%u):\n", f1_path, v1, f2_path, v2);
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "diff -u %s %s", tmp1, tmp2);
+    system(cmd);
+
+    unlink(tmp1);
+    unlink(tmp2);
+
+cleanup:
+    close(fd1);
+    close(fd2);
+    return 0;
+}
+
+int cmd_config(int argc, char *argv[]) {
+    /* Basit bir konfigürasyon simülasyonu */
+    const char *conf_path = "/etc/vcfs.conf";
+    if (argc == 3) {
+        // Okuma
+        printf("Configuration for '%s' not set (using defaults).\n", argv[2]);
+    } else if (argc == 4) {
+        // Yazma
+        FILE *f = fopen(conf_path, "a");
+        if (f) {
+            fprintf(f, "%s=%s\n", argv[2], argv[3]);
+            fclose(f);
+            printf("Ayar güncellendi: %s = %s\n", argv[2], argv[3]);
+        } else {
+            perror("Config dosyası yazılamadı");
+        }
+    }
+    return 0;
 }
 
 int cmd_status(const char *filepath) {
@@ -245,19 +357,20 @@ int cmd_trash(const char *action) {
         }
 
         printf("Çöp Kutusundaki Dosyalar\n");
-        printf("------------------------------------------------------------------\n");
-        printf("Inode      | Dosya Adı           | Boyut      | Silinme Tarihi\n");
-        printf("------------------------------------------------------------------\n");
+        printf("------------------------------------------------------------------------------------\n");
+        printf("Inode      | Dosya Adı           | Boyut      | UID        | Silinme Tarihi\n");
+        printf("------------------------------------------------------------------------------------\n");
         for (__u32 i = 0; i < args.count; i++) {
             time_t ts = args.items[i].delete_timestamp;
             struct tm *tm_info = localtime(&ts);
             char time_buf[26];
             strftime(time_buf, 26, "%Y-%m-%d %H:%M:%S", tm_info);
 
-            printf("%-10u | %-19s | %-10u | %s\n", 
+            printf("%-10u | %-19s | %-10u | %-10u | %s\n", 
                 args.items[i].inode_no, 
                 args.items[i].filename, 
                 args.items[i].size,
+                args.items[i].uid,
                 time_buf);
         }
         free(args.items);
@@ -329,6 +442,23 @@ int main(int argc, char *argv[]) {
         __u32 v1 = (__u32)atoi(argv[3]);
         __u32 v2 = (__u32)atoi(argv[4]);
         return cmd_diff(argv[2], v1, v2);
+    } else if (strcmp(command, "diff-files") == 0) {
+        if (argc < 6) {
+            printf("Hata: Eksik argüman.\nKullanım: vcfs diff-files <d1> <v1> <d2> <v2>\n");
+            return EXIT_FAILURE;
+        }
+        __u32 v1 = (__u32)atoi(argv[3]);
+        __u32 v2 = (__u32)atoi(argv[5]);
+        return cmd_diff_files(argv[2], v1, argv[4], v2);
+    } else if (strcmp(command, "export") == 0) {
+        if (argc < 5) {
+            printf("Hata: Eksik argüman.\nKullanım: vcfs export <dosya> <v_id> <hedef_yol>\n");
+            return EXIT_FAILURE;
+        }
+        __u32 version = (__u32)atoi(argv[3]);
+        return cmd_export(argv[2], version, argv[4]);
+    } else if (strcmp(command, "config") == 0) {
+        return cmd_config(argc, argv);
     } else if (strcmp(command, "trash") == 0) {
         if (argc < 3) {
             printf("Hata: Eksik argüman.\nKullanım: vcfs trash --list / --clean\n");

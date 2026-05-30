@@ -102,6 +102,7 @@ struct inode *vcfs_iget(struct super_block *sb, unsigned long ino)
     ci->version_timestamp = le32_to_cpu(cinode->version_timestamp);
     ci->prev_version_inode = le32_to_cpu(cinode->prev_version_inode);
     ci->is_deleted = le32_to_cpu(cinode->is_deleted);
+    strncpy(ci->i_data, cinode->i_data, sizeof(ci->i_data));
 
     brelse(bh);
 
@@ -148,7 +149,7 @@ static struct dentry *vcfs_lookup(struct inode *dir,
     /* Search for the file in directory */
     for (ei = 0; ei < vcfs_MAX_EXTENTS; ei++) {
         if (!eblock->extents[ei].ee_start)
-            break;
+            continue; /* Skip empty extents and keep searching */
 
         /* Iterate blocks in extent */
         for (bi = 0; bi < eblock->extents[ei].ee_len; bi++) {
@@ -161,19 +162,15 @@ static struct dentry *vcfs_lookup(struct inode *dir,
             dblock = (struct vcfs_dir_block *) bh2->b_data;
 
             /* Search file in ei_block */
-            for (fi = 0; fi < dblock->nr_files;) {
+            for (fi = 0; fi < vcfs_FILES_PER_BLOCK; fi++) {
                 f = &dblock->files[fi];
-                if (!f->inode) {
-                    brelse(bh2);
-                    goto search_end;
+                if (f->inode) {
+                    if (!strncmp(f->filename, dentry->d_name.name, vcfs_FILENAME_LEN)) {
+                        inode = vcfs_iget(sb, f->inode);
+                        brelse(bh2);
+                        goto search_end;
+                    }
                 }
-                if (!strncmp(f->filename, dentry->d_name.name,
-                             vcfs_FILENAME_LEN)) {
-                    inode = vcfs_iget(sb, f->inode);
-                    brelse(bh2);
-                    goto search_end;
-                }
-                fi += dblock->files[fi].nr_blk;
             }
             brelse(bh2);
             bh2 = NULL;

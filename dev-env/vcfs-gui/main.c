@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
+#include <string.h>
 
 GtkWidget *tree_view_files;
 GtkWidget *list_box_versions;
@@ -36,7 +37,7 @@ static void on_checkout_clicked(GtkWidget *widget, gpointer data) {
     }
 }
 
-/* Diff Penceresi */
+/* Diff Penceresi (Renklendirilmiş) */
 static void on_diff_clicked(GtkWidget *widget, gpointer data) {
     GtkWidget *diff_dialog = gtk_dialog_new_with_buttons("Karşılaştırma (Diff)", 
                                                          GTK_WINDOW(window), 
@@ -53,7 +54,16 @@ static void on_diff_clicked(GtkWidget *widget, gpointer data) {
     GtkWidget *text_left = gtk_text_view_new();
     gtk_text_view_set_editable(GTK_TEXT_VIEW(text_left), FALSE);
     GtkTextBuffer *buf_left = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_left));
-    gtk_text_buffer_set_text(buf_left, "eski_kod_satiri(void) {\n- silinen satir;\n}", -1);
+    
+    gtk_text_buffer_create_tag(buf_left, "deleted", "background", "#FFDDDD", "foreground", "#990000", NULL);
+    gtk_text_buffer_create_tag(buf_left, "normal", NULL);
+    
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_offset(buf_left, &iter, 0);
+    gtk_text_buffer_insert_with_tags_by_name(buf_left, &iter, "eski_kod_satiri(void) {\n", -1, "normal", NULL);
+    gtk_text_buffer_insert_with_tags_by_name(buf_left, &iter, "- silinen satir;\n", -1, "deleted", NULL);
+    gtk_text_buffer_insert_with_tags_by_name(buf_left, &iter, "}", -1, "normal", NULL);
+
     gtk_container_add(GTK_CONTAINER(scroll_left), text_left);
     gtk_paned_pack1(GTK_PANED(paned), scroll_left, TRUE, FALSE);
 
@@ -62,7 +72,15 @@ static void on_diff_clicked(GtkWidget *widget, gpointer data) {
     GtkWidget *text_right = gtk_text_view_new();
     gtk_text_view_set_editable(GTK_TEXT_VIEW(text_right), FALSE);
     GtkTextBuffer *buf_right = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_right));
-    gtk_text_buffer_set_text(buf_right, "yeni_kod_satiri(void) {\n+ eklenen satir;\n}", -1);
+
+    gtk_text_buffer_create_tag(buf_right, "added", "background", "#DDFFDD", "foreground", "#006600", NULL);
+    gtk_text_buffer_create_tag(buf_right, "normal", NULL);
+
+    gtk_text_buffer_get_iter_at_offset(buf_right, &iter, 0);
+    gtk_text_buffer_insert_with_tags_by_name(buf_right, &iter, "yeni_kod_satiri(void) {\n", -1, "normal", NULL);
+    gtk_text_buffer_insert_with_tags_by_name(buf_right, &iter, "+ eklenen satir;\n", -1, "added", NULL);
+    gtk_text_buffer_insert_with_tags_by_name(buf_right, &iter, "}", -1, "normal", NULL);
+
     gtk_container_add(GTK_CONTAINER(scroll_right), text_right);
     gtk_paned_pack2(GTK_PANED(paned), scroll_right, TRUE, FALSE);
 
@@ -75,7 +93,6 @@ static void on_diff_clicked(GtkWidget *widget, gpointer data) {
 static void on_version_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointer user_data) {
     if (!row) return;
 
-    /* Index'e göre bilgileri güncelle (Mockup verileri) */
     int index = gtk_list_box_row_get_index(row);
     if (index == 0) { // Current
         gtk_label_set_text(GTK_LABEL(lbl_val_name), "filename1.txt");
@@ -96,7 +113,7 @@ static void on_version_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointe
 }
 
 /* Orta Panele (Timeline/Freeview) Mockup Veri Ekler */
-static void populate_timeline() {
+static void populate_timeline(const gchar* ext) {
     GList *children, *iter;
     children = gtk_container_get_children(GTK_CONTAINER(list_box_versions));
     for(iter = children; iter != NULL; iter = g_list_next(iter))
@@ -105,9 +122,13 @@ static void populate_timeline() {
 
     const char *names[] = {"filename1.txt", "filename1", "filename2.md"};
     const char *dates[] = {"Current", "19/08/2025 at 23:43", "11/01/2025 at 09:20"};
+    const char *icon_name = "text-x-generic";
+
+    if (ext && strstr(ext, ".png")) icon_name = "image-x-generic";
+    else if (ext && strstr(ext, ".c")) icon_name = "text-x-script";
 
     for (int i = 0; i < 3; i++) {
-        /* Add Up Arrow between nodes (except for the very first top node) */
+        /* Add Up Arrow between nodes */
         if (i > 0) {
             GtkWidget *arrow_row = gtk_list_box_row_new();
             gtk_list_box_row_set_selectable(GTK_LIST_BOX_ROW(arrow_row), FALSE);
@@ -128,16 +149,20 @@ static void populate_timeline() {
         gtk_widget_set_margin_start(box, 20);
         gtk_widget_set_margin_end(box, 20);
 
-        /* Blue Circle Label */
+        /* Thumbnail Icon + Blue Circle Label */
+        GtkWidget *node_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+        GtkWidget *thumb_icon = gtk_image_new_from_icon_name(icon_name, GTK_ICON_SIZE_DND);
         GtkWidget *lbl_node = gtk_label_new(names[i]);
         gtk_style_context_add_class(gtk_widget_get_style_context(lbl_node), "blue-node");
-        gtk_widget_set_halign(lbl_node, GTK_ALIGN_CENTER);
+        
+        gtk_box_pack_start(GTK_BOX(node_box), thumb_icon, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(node_box), lbl_node, FALSE, FALSE, 0);
 
         /* Date / Current Label */
         GtkWidget *lbl_date = gtk_label_new(dates[i]);
         gtk_widget_set_halign(lbl_date, GTK_ALIGN_END);
 
-        gtk_box_pack_start(GTK_BOX(box), lbl_node, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), node_box, FALSE, FALSE, 0);
         gtk_box_pack_end(GTK_BOX(box), lbl_date, FALSE, FALSE, 0);
         
         gtk_container_add(GTK_CONTAINER(row), box);
@@ -153,10 +178,41 @@ static void on_file_selected(GtkTreeSelection *selection, gpointer data) {
     gchar *filename;
 
     if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
-        gtk_tree_model_get(model, &iter, 0, &filename, -1);
-        populate_timeline();
+        gtk_tree_model_get(model, &iter, 1, &filename, -1); // 1 is text column
+        populate_timeline(filename);
         g_free(filename);
     }
+}
+
+/* Çöp Kutusu Ayarlar Dialogu */
+static void on_trash_settings_clicked(GtkWidget *widget, gpointer data) {
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Çöp Kutusu Temizleme Politikası", 
+                                                    GTK_WINDOW(window), 
+                                                    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                    "Kaydet", GTK_RESPONSE_ACCEPT,
+                                                    "İptal", GTK_RESPONSE_REJECT,
+                                                    NULL);
+    
+    GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_start(box, 20);
+    gtk_widget_set_margin_end(box, 20);
+    gtk_widget_set_margin_top(box, 20);
+    gtk_widget_set_margin_bottom(box, 20);
+
+    GtkWidget *label = gtk_label_new("Silinen dosyalar kaç gün sonra kalıcı olarak temizlensin?");
+    GtkWidget *spin_button = gtk_spin_button_new_with_range(1, 365, 1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin_button), 30);
+
+    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), spin_button, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(content_area), box);
+
+    gtk_widget_show_all(dialog);
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        g_print("Ayarlar güncellendi: %d gün\n", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_button)));
+    }
+    gtk_widget_destroy(dialog);
 }
 
 /* Menü Değişimi */
@@ -173,9 +229,16 @@ static GtkWidget* create_trash_view() {
     gtk_widget_set_margin_start(vbox, 20);
     gtk_widget_set_margin_end(vbox, 20);
 
+    GtkWidget *header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     GtkWidget *title = gtk_label_new("<span size='x-large' weight='bold'>Çöp Kutusu (Trash) Yönetimi</span>");
     gtk_label_set_markup(GTK_LABEL(title), "<span size='x-large' weight='bold'>Çöp Kutusu (Trash) Yönetimi</span>");
-    gtk_box_pack_start(GTK_BOX(vbox), title, FALSE, FALSE, 0);
+    
+    GtkWidget *btn_settings = gtk_button_new_from_icon_name("preferences-system", GTK_ICON_SIZE_BUTTON);
+    g_signal_connect(btn_settings, "clicked", G_CALLBACK(on_trash_settings_clicked), NULL);
+
+    gtk_box_pack_start(GTK_BOX(header_box), title, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(header_box), btn_settings, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), header_box, FALSE, FALSE, 0);
 
     GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
     gtk_widget_set_vexpand(scroll, TRUE);
@@ -224,21 +287,31 @@ static GtkWidget* create_main_view() {
     gtk_box_pack_start(GTK_BOX(box_left), lbl_left_title, FALSE, FALSE, 0);
 
     GtkWidget *scroll_files = gtk_scrolled_window_new(NULL, NULL);
-    GtkTreeStore *store = gtk_tree_store_new(1, G_TYPE_STRING);
+    
+    /* Store: 0=IconName, 1=Filename */
+    GtkTreeStore *store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
     tree_view_files = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tree_view_files), FALSE);
     
-    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-    GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes("Files", renderer, "text", 0, NULL);
+    GtkTreeViewColumn *column = gtk_tree_view_column_new();
+    
+    GtkCellRenderer *icon_renderer = gtk_cell_renderer_pixbuf_new();
+    gtk_tree_view_column_pack_start(column, icon_renderer, FALSE);
+    gtk_tree_view_column_add_attribute(column, icon_renderer, "icon-name", 0);
+
+    GtkCellRenderer *text_renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
+    gtk_tree_view_column_add_attribute(column, text_renderer, "text", 1);
+
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view_files), column);
     
     GtkTreeIter iter_file;
     gtk_tree_store_append(store, &iter_file, NULL);
-    gtk_tree_store_set(store, &iter_file, 0, "File 1", -1);
+    gtk_tree_store_set(store, &iter_file, 0, "text-x-generic", 1, "File 1.txt", -1);
     gtk_tree_store_append(store, &iter_file, NULL);
-    gtk_tree_store_set(store, &iter_file, 0, "File 2", -1);
+    gtk_tree_store_set(store, &iter_file, 0, "image-x-generic", 1, "File 2.png", -1);
     gtk_tree_store_append(store, &iter_file, NULL);
-    gtk_tree_store_set(store, &iter_file, 0, "File 3", -1);
+    gtk_tree_store_set(store, &iter_file, 0, "text-x-script", 1, "File 3.c", -1);
 
     GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree_view_files));
     g_signal_connect(selection, "changed", G_CALLBACK(on_file_selected), NULL);

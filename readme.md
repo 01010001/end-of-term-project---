@@ -16,11 +16,11 @@ docker compose run --rm kernel-dev bash
 
 ## Compilation and VM Execution
 
-Inside the Docker container, you can use the provided script to automatically build all components (VCFS kernel module, CLI, and Daemon) and boot into a lightweight QEMU virtual machine for testing:
+Inside the Docker container, you can use the provided script to automatically build all components (VCFS kernel module, CLI, and Daemon) and boot into a lightweight QEMU virtual machine for testing. **An automated test suite will run on boot to verify all functionalities.**
 
 ```bash
 # This will build the tools and start the VM
-/workspace/test/qemu-setup.sh
+/workspace/qemu-setup.sh
 ```
 
 ## Running the Components in QEMU

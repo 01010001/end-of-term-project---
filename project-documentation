@@ -551,10 +551,56 @@ GUI, ayrı bir çöp kutusu görünümü sunacaktır. Bu görünüm, silinen dos
  
 BÖLÜM 4.	PROJE GELİŞTİRME SÜRECİ
 
+Projenin geliştirme süreci, Bölüm 3'te ortaya konulan kavramsal tasarımın ve Linux VFS mimarisinin somut bir Proof of Concept (PoC) yazılımına dönüştürülmesi amacıyla iteratif (yinelemeli) bir mühendislik yaklaşımıyla yürütülmüştür. Bu bölümde, sistemin kodlanması sırasında kullanılan teknolojiler, alınan mimari kararların alt seviye (low-level) implementasyon detayları ve karşılaşılan teknik engellerin nasıl aşıldığı uzun uzadıya incelenecektir.
 
+4.1. Geliştirme Ortamı ve Mimari Altyapı
+İşletim sistemi çekirdeği (Kernel) üzerinde yapılan modifikasyonlar, en ufak bir bellek hatasında tüm sistemin çökmesine (Kernel Panic) yol açma potansiyeline sahiptir. Bu riski izole etmek ve tekrarlanabilir (reproducible) bir derleme ortamı sağlamak amacıyla, geliştirme süreci Docker konteynerleri ve QEMU donanım sanallaştırıcısı üzerinde kurgulanmıştır.
 
+Sürecin başlarında, çekirdek modüllerinin (LKM) ve kullanıcı alanı araçlarının derlendikten sonra "ext2" formatında harici bir disk imajı (`modules.img`) olarak QEMU sanal makinesine bağlanması denenmiştir. Ancak, QEMU'nun minimalist yapısı ve yükleme sırasındaki zamanlama uyumsuzlukları nedeniyle `mount` işlemi "Invalid argument" ve "Not a directory" gibi hatalar fırlatmıştır. Bu darboğazı kökten çözmek için test betiği (`qemu-setup.sh`) baştan aşağı revize edilmiştir. VCFS modülü, komut satırı arayüzü ve Daemon yazılımı, harici bir disk yerine derleme anında doğrudan Linux'un geçici kök dosya sistemine (initramfs RAM diski) fiziksel olarak gömülmüştür (embedded). Bu kritik mimari hamle sayesinde, montaj hataları tamamen ortadan kalkmış, VCFS modülü sistem boot edildiği ilk saniyede `insmod` ile çekirdeğe dahil edilebilir hale gelerek test süreçleri dramatik ölçüde hızlanmıştır.
 
+4.2. Linux VFS Entegrasyonu ve Veri Yapılarının Düzenlenmesi
+Dosya sisteminin iskeleti, Bölüm 3.2'de detaylandırılan VFS operasyonlarını (Superblock, Inode, Dentry ve File işlemleri) C programlama dili kullanarak sarmalayacak (wrap) şekilde inşa edilmiştir.
 
+İlk adımda disk üzerindeki düğüm yapısını temsil eden `struct vcfs_inode` veri yapısı, versiyonlama yeteneği kazanabilmesi için modifiye edilmiştir. Dosyanın geçmiş zincirini tutmak amacıyla bu yapıya yerel (native) olarak dört yeni alan eklenmiştir: artımlı versiyon numarasını tutan `version_id`, zaman damgası tabanlı aramalar için `version_timestamp`, bağlı liste (linked-list) yapısında önceki düğümü gösteren `prev_version_inode` ve çöp kutusu yönetiminde kullanılan `is_deleted` bayrağı. İşletim sistemi çekirdekleri bellek hizalamasına (memory alignment) son derece duyarlı olduğundan, eklenen bu 16 byte'lık ekstra verinin 4096 byte'lık (4KB) disk bloklarında taşma (overflow) veya parçalanma (fragmentation) yaratmasını önlemek adına, inode yapısının toplam boyutu `padding` (dolgu) yöntemiyle tam olarak 128 byte'a sabitlenmiştir.
+
+4.3. Copy-on-Write (CoW) Mekanizmasının Gerçeklenmesi
+Projenin temel amacı olan veri bütünlüğünü sağlama vizyonu, Blok-Seviyesi (Extent-Level) Copy-on-Write mekanizması üzerinden kodlanmıştır (Bölüm 3.4.5). Bir uygulamadan veya kullanıcıdan VFS üzerinden dosya yazma isteği (`O_WRONLY` veya `O_RDWR` bayraklarıyla) geldiğinde, `file.c` içerisindeki `vcfs_open` fonksiyonu bu talebi yakalamaktadır. Bu aşamada derhal `vcfs_create_version()` yardımcı fonksiyonu tetiklenir ve mevcut dosyanın o anki durumunu temsil eden, yepyeni bir "Historical Inode" (geçmiş versiyon düğümü) disk üzerinde tahsis edilir (snapshot alınır). Güncel dosyanın `prev_version_inode` değeri, yeni oluşturulan bu geçmiş düğüme bağlanır.
+
+Yazma işlemi fiilen başladığında, `vcfs_write` ve blok eşleştirme fonksiyonu olan `vcfs_file_get_block` devreye girer. Bu fonksiyonlar, üzerine yazılmak istenen her bir extent'in (veri bloğu dizisinin) `version_id` değeri ile dosyanın güncel `version_id` değerini kıyaslar. Eğer blok eski bir versiyona aitse, mevcut verinin üzerine yazılması (overwrite) kesinlikle engellenir. Bunun yerine, diskte boş bir alan bulunarak (allocate) yeni bir extent oluşturulur, eski veriler bu yeni alana kopyalanır ve değişiklikler bu yeni blok üzerinde yapılır. Bu işlem, disk I/O performansını yüksek tutarken eski versiyonların bütünlüğünün zedelenmemesini garanti altına almıştır. 
+
+Geliştirme safhasında yaşanan "Dosya ilk kez oluşturulduğunda içinin boş (0 byte) olması ancak boş bir snapshot yaratılması" mantık hatası ise; `vcfs_create_version` içerisine `if (ci->version_id == 0 && inode->i_size == 0)` kontrolü eklenerek çözülmüş, gereksiz disk israfının önüne geçilmiştir.
+
+[BURAYA GÖRSEL EKLENECEK: Copy-on-Write mekanizmasının çalıştığını gösteren terminal çıktısı veya VFS operasyonlarının akış diyagramı]
+
+4.4. Çöp Kutusu (Trash) ve Eviction Yönetimi
+Tezin Bölüm 3.4.7'sinde hedeflenen çöp kutusu mekanizmasının hayata geçirilmesi, standart Linux çekirdek mimarisinin yıkıcı (destructive) doğası nedeniyle ciddi bir teknik zorluk doğurmuştur. Standart VFS çalışma prensibine göre; kullanıcı `rm` komutu ile bir dosyayı dizinden sildiğinde (unlink), dosyanın kök bağlantı sayısı (`i_nlink`) sıfıra düşürülür. Çekirdeğin bellek yöneticisi `i_nlink == 0` olduğunu gördüğü an `evict_inode` rutinini çalıştırarak inode'u ve ona bağlı tüm veri bloklarını diskten (bitmap üzerinden) fiziksel olarak tamamen siler. Bu durum, çöp kutusu listesinin her seferinde boş dönmesine sebep olmuştur.
+
+Bu engeli aşmak için `inode.c` dosyasındaki `vcfs_unlink` fonksiyonuna düşük seviyeli (low-level) bir müdahalede bulunulmuştur. Dosya silinmek istendiğinde, dosya ilgili dizinden (dentry) fiziksel olarak koparılmış, ancak `i_nlink` (bağlantı sayısı) kasten "1" seviyesinde tutularak VFS mekanizması manipüle edilmiştir (kandırılmıştır). Bunun yerine, inode içerisindeki `is_deleted` bayrağı aktif hale getirilmiş ve dosyanın orijinal adı (filename) kaybolmaması için 32-karakterlik `i_data` dizisine yedeklenmiştir. Böylece silinen dosyalar "yetim (orphan)" birer düğüm olarak diskte güvenle saklanabilmiş ve çöp kutusu altyapısı sağlamlaştırılmıştır.
+
+4.5. Kullanıcı Alanı Optimizasyon Servisi (Daemon) Geliştirilmesi
+Bölüm 3.4.8'de belirtilen delta sıkıştırma ve depolama verimliliği adımları için, doğrudan işletim sistemi çekirdeğini yormaktan kaçınılmış, bunun yerine arka planda bağımsız olarak çalışan bir C Daemon süreci (`vcfsd`) tasarlanmıştır.
+
+Bu servis, UNIX Daemon standartlarına uygun olarak `fork()` ve `setsid()` sistem çağrılarıyla ebeveyn (parent) süreçten koparılmış ve terminalden bağımsız hale getirilmiştir. Daemon'ın çekirdek modülü ile haberleşmesi için `vcfs_ioctl.h` başlık dosyasında özel bir Input/Output Control (IOCTL) arayüzü tanımlanmıştır. Servis, hedeflenen dosya sistemini (mount point) 60 saniyelik periyotlarla yinelemeli (recursive) olarak tarar. Dosyalara `VCFS_IOC_GET_VERSION_COUNT` komutunu göndererek versiyon sayılarını öğrenir. Belirlenen yoğunluk eşiğini aşan eski versiyonları tespit ettiğinde, `VCFS_IOC_COMPRESS_VERSION` IOCTL sinyalini çekirdeğe iletir. Mevcut sürüm (Proof of Concept) kapsamında bu sinyal Kernel üzerinde loglama yaparak simüle edilmekle birlikte, mimari olarak tam teşekküllü bir zlib optimizasyonuna tüm kapıları açık bırakmıştır.
+
+4.6. Komut Satırı Arayüzü (CLI) Geliştirme Süreci
+Bölüm 3.5'te listelenen fonksiyonların (Tablo 2) sistem yöneticileri tarafından kullanılabilmesi için, hiçbir ek kütüphane gerektirmeyen, doğrudan POSIX standartlarına uygun, saf C dilinde yazılmış bir Komut Satırı Arayüzü (`vcfs-cli`) geliştirilmiştir.
+
+Geliştirme sürecinin en kritik kısımlarından biri "Karşılaştırma ve Diff Görünümü" olmuştur. `vcfs diff` komutu girildiğinde, sistem doğrudan checkout yapıp (dosyayı eski haline getirip) disk düzenini bozmak yerine; yepyeni bir IOCTL komutu olan `VCFS_IOC_READ_VERSION` üzerinden çekirdeğe ulaşır. Çekirdek (Kernel), talep edilen iki eski versiyonun veri bloklarını, dosya sisteminin güncel durumunu hiç etkilemeden 4KB'lık parçalar (buffer) halinde belleğe çeker ve Kullanıcı Alanına (User-Space) aktarır. CLI, bu verileri geçici dosyalara (`/tmp`) yazar ve Linux'un yerleşik `diff` programını alt süreç (child process) olarak çağırarak versiyonlar arası farklılıkları ekrana basar.
+
+CLI aracının çöp kutusunu okuyabilmesi (`vcfs trash --list`) için ise dizin tabanlı (Directory) IOCTL'ler kullanılmıştır. Çekirdek `VCFS_IOC_GET_TRASH_LIST` çağrısını aldığında, diskte kayıtlı olan (Örn: 12.800 adet) tüm inode'ları tek tek dolaşır, sadece `is_deleted == 1` bayrağı aktif olanları ayıklar ve orijinal isimleriyle birlikte kullanıcının ekranına listeler. Kullanıcı geri döndürmek istediği dosyanın ID'sini `vcfs restore <inode_no>` şeklinde girdiğinde ise, çekirdekteki `vcfs_link_inode` fonksiyonu manuel bir *dentry* (dizin girdisi) oluşturarak yetim inode'u tekrar dosya sistemine canlandırır.
+
+Geliştirme esnasında QEMU üzerindeki "Busybox ash shell" kısıtlamaları nedeniyle tab tuşu ile otomatik tamamlama (autocomplete) sadece ana komutlarda desteklenmiş olup, `linux/types.h` gibi çekirdek kütüphanelerinin CLI aracına dahil edilmesiyle derleme uyumsuzlukları (`__u32` eksiklikleri) tamamen çözülmüştür.
+
+[BURAYA GÖRSEL EKLENECEK: VCFS CLI üzerinden "vcfs log" veya "vcfs diff" komutlarının terminal üzerinde sorunsuz çalıştığını gösteren bir ekran görüntüsü]
+
+4.7. Native Grafik Kullanıcı Arayüzü (GUI) Geliştirme Süreci
+Bölüm 3.6'da hedeflenen "MacOS Time Machine" benzeri görselleştirme stratejisi, performans hedeflerinden (düşük RAM ve CPU kullanımı) ödün vermemek adına Python/PyQt gibi sanal makine (interpreter) barındıran dillerden ziyade, işletim sisteminin doğal (native) yapısı olan C dili ve GTK+ 3.0 framework'ü kullanılarak hayata geçirilmiştir.
+
+Arayüz hiyerarşisi `GtkPaned` kullanılarak tasarlanmış ve tezde belirtilen üçlü sütun mantığına (Sol: File Explorer, Orta: Freeview Timeline, Sağ: Version Details) birebir uyarlanmıştır. Sol sütunda sistemdeki dosyalar `GtkTreeView` ile hiyerarşik listelenmiş, orta sütunda versiyonları ifade eden görsel düğümler CSS Provider (`.blue-node`) kullanılarak mavi dairesel nesneler olarak tasarlanmış ve aralarına "pan-up-symbolic" ikonlu dikey akış yönlendiricileri eklenmiştir. Sağ sütunda ise versiyon meta-verileri (Oluşturulma zamanı, boyut vb.) `GtkGrid` ile yapılandırılmış ve "Restore" ile "Diff" aksiyon butonları arayüze gömülmüştür.
+
+Gerçek bir Linux makinesi (Host) üzerinde GUI'nin Kernel bağımsız derlenebilmesi test edilirken, User-Space kodlarının çekirdeğe ait olan `__user` makrosunu tanımamasından dolayı alınan derleyici hataları; C ön işlemci makroları (`#ifndef __user \n #define __user \n #endif`) kullanılarak giderilmiş ve arayüzün çekirdek kurulu olmasa dahi Dummy/Mockup modunda test edilebilmesinin önü açılmıştır. Arayüzün tüm menü geçişleri (Stack tabanlı navigasyon), onay dialogları (Confirmation Messages) ve ikiye bölünmüş yan yana metin kutuları (Side-by-side Diff View) GTK bileşenleriyle eksiksiz kodlanarak proje tamamlanmıştır.
+
+[BURAYA GÖRSEL EKLENECEK: VCFS GUI (GTK3) arayüzünün üç panelli, mavi düğümlü ve sağ tarafında metin önizlemesi olan güncel ekran görüntüsü]
 
 BÖLÜM 5.	ÇALIŞMANIN ETKİLERİ VE SORUMLULUKLARI 
 BÖLÜM 6.	TARTIŞMA VE SONUÇ

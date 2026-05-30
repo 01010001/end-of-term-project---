@@ -4,6 +4,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/namei.h>
 
 #include "vcfs.h"
 
@@ -80,7 +81,7 @@ static int vcfs_iterate(struct file *dir, struct dir_context *ctx)
                 continue;
             }
 
-            for (fi = 0; fi < vcfs_FILES_PER_BLOCK;) {
+            for (fi = 0; fi < vcfs_FILES_PER_BLOCK; fi++) {
                 if (dblock->files[fi].inode != 0) {
                     if (offset) {
                         offset--;
@@ -97,7 +98,6 @@ static int vcfs_iterate(struct file *dir, struct dir_context *ctx)
                         ctx->pos++;
                     }
                 }
-                fi += dblock->files[fi].nr_blk;
             }
             brelse(bh2);
             bh2 = NULL;
@@ -158,6 +158,7 @@ static long vcfs_dir_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
                 if (vcfs_INODE(tmp)->is_deleted == 1) {
                     list[count].inode_no = tmp->i_ino;
                     list[count].size = tmp->i_size;
+                    list[count].uid = i_uid_read(tmp);
                     list[count].delete_timestamp = vcfs_INODE(tmp)->version_timestamp;
                     strncpy(list[count].filename, vcfs_INODE(tmp)->i_data, 31);
                     list[count].filename[31] = '\0';
@@ -199,9 +200,9 @@ static long vcfs_dir_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 
         inode_lock(dir);
         
-        /* Create a dentry manually for the link operation */
-        dentry = d_alloc_name(filp->f_path.dentry, vcfs_INODE(target_inode)->i_data);
-        if (dentry) {
+        /* Properly lookup the dentry in VFS cache (might return negative dentry from recent rm) */
+        dentry = lookup_one_len(vcfs_INODE(target_inode)->i_data, filp->f_path.dentry, strlen(vcfs_INODE(target_inode)->i_data));
+        if (!IS_ERR(dentry)) {
             /* Create link in current directory */
             extern int vcfs_link_inode(struct inode *old_inode, struct inode *dir, struct dentry *dentry);
             err = vcfs_link_inode(target_inode, dir, dentry);
@@ -211,7 +212,7 @@ static long vcfs_dir_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
             }
             dput(dentry);
         } else {
-            err = -ENOMEM;
+            err = PTR_ERR(dentry);
         }
 
         inode_unlock(dir);
