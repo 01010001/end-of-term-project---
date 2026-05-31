@@ -13,8 +13,10 @@ services:
       - ./vcfs-cli:/workspace/vcfs-cli
       - ./vcfs-daemon:/workspace/vcfs-daemon
       - ./vcfs-gui:/workspace/vcfs-gui
-      - ./qemu-test-auto.sh:/workspace/qemu-test-auto.sh
-      - ./qemu-test-manual.sh:/workspace/qemu-test-manual.sh
+      - ./qemu-test.sh:/workspace/qemu-test.sh
+      - ./build-alpine.sh:/workspace/build-alpine.sh
+    ports:
+      - "6080:6080"
     devices:
       - /dev/kvm:/dev/kvm
     privileged: true

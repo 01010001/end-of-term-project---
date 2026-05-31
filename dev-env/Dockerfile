@@ -10,8 +10,15 @@ RUN dnf update -y && dnf install -y \
     clang llvm sparse \
     kmod \
     qemu-system-x86 \
+    qemu-img \
     busybox \
     e2fsprogs \
+    novnc \
+    python3-websockify \
+    mtools \
+    dosfstools \
+    wget \
+    tar \
     && dnf clean all
 
 RUN dnf install -y \
