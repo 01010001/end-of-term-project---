@@ -88,7 +88,7 @@ static int vcfs_iterate(struct file *dir, struct dir_context *ctx)
                     } else {
                         remained_nr_files--;
                         if (!dir_emit(ctx, dblock->files[fi].filename,
-                                      vcfs_FILENAME_LEN,
+                                      strnlen(dblock->files[fi].filename, vcfs_FILENAME_LEN),
                                       dblock->files[fi].inode, DT_UNKNOWN)) {
                             brelse(bh2);
                             bh2 = NULL;
@@ -241,6 +241,7 @@ static long vcfs_dir_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 
 const struct file_operations vcfs_dir_ops = {
     .owner = THIS_MODULE,
+    .llseek = generic_file_llseek,
     .iterate_shared = vcfs_iterate,
     .unlocked_ioctl = vcfs_dir_ioctl,
 };

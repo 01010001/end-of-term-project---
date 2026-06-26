@@ -74,6 +74,11 @@ elif [ "$MODE" = "gui" ]; then
     mkfs.vfat /tmp/payload.img >/dev/null
     mcopy -i /tmp/payload.img /workspace/vcfs-alpine.ko ::/vcfs.ko
     mcopy -i /tmp/payload.img /workspace/gui-alpine ::/vcfs-gui
+    mcopy -i /tmp/payload.img /workspace/mkfs-alpine ::/mkfs.vcfs
+    mcopy -i /tmp/payload.img /workspace/vcfs-cli-alpine ::/vcfs 2>/dev/null || true
+
+    echo "[*] Creating VCFS test disk (50MB)..."
+    dd if=/dev/zero of=/tmp/vcfs-test.img bs=1M count=50 2>/dev/null
     
     echo "[*] Starting websockify (noVNC)..."
     killall websockify 2>/dev/null || true
@@ -88,6 +93,7 @@ elif [ "$MODE" = "gui" ]; then
         -append "root=/dev/vda rootfstype=ext4 rw console=ttyS0" \
         -drive file=/workspace/alpine.qcow2,format=qcow2,if=virtio \
         -drive file=/tmp/payload.img,format=raw,if=virtio \
+        -drive file=/tmp/vcfs-test.img,format=raw,if=virtio \
         -device virtio-gpu-pci \
         -display vnc=127.0.0.1:0 \
         -serial stdio

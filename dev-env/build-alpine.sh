@@ -10,8 +10,8 @@ IMG_QCOW2="/workspace/alpine.qcow2"
 MNT_DIR="/tmp/alpine_mnt"
 
 if [ -f "$IMG_QCOW2" ]; then
-    echo "[*] Alpine image already exists. Skipping build."
-    exit 0
+    echo "[*] Removing old Alpine image to force rebuild..."
+    rm -f "$IMG_QCOW2"
 fi
 
 echo "[*] Downloading Alpine rootfs..."
@@ -47,6 +47,7 @@ echo 'features="ata base ide scsi usb virtio ext4"' > "$MNT_DIR/etc/mkinitfs/mki
 cp -r /workspace/gui "$MNT_DIR/payload_src"
 cp -r /workspace/kernel-module "$MNT_DIR/kernel_src"
 cp -r /workspace/daemon "$MNT_DIR/daemon"
+cp -r /workspace/cli "$MNT_DIR/cli_src"
 
 echo "[*] Installing packages and compiling GUI/Kernel in Alpine..."
 chroot "$MNT_DIR" /bin/sh -c "
@@ -63,6 +64,7 @@ chroot "$MNT_DIR" /bin/sh -c "
     make -C /payload_src clean || true && \
     make -C /payload_src && \
     make -C /kernel_src clean || true && \
+    gcc -std=gnu99 -Wall -o /kernel_src/mkfs.vcfs /kernel_src/mkfs.c && \
     KDIR=\$(find /usr/src -name \"linux-headers-*lts*\" -type d | head -n 1) && \
     echo > \$KDIR/scripts/Makefile.gcc-plugins && \
     make -C \$KDIR M=/kernel_src modules
@@ -71,6 +73,13 @@ chroot "$MNT_DIR" /bin/sh -c "
 echo "[*] Saving musl-compiled GUI and Kernel binaries..."
 cp "$MNT_DIR/payload_src/vcfs-gui" /workspace/gui-alpine
 cp "$MNT_DIR/kernel_src/vcfs.ko" /workspace/vcfs-alpine.ko
+cp "$MNT_DIR/kernel_src/mkfs.vcfs" /workspace/mkfs-alpine
+
+# Also compile CLI tool inside Alpine for musl compatibility
+chroot "$MNT_DIR" /bin/sh -c "
+    cd /cli_src && make clean >/dev/null 2>&1 || true && make
+"
+cp "$MNT_DIR/cli_src/vcfs" /workspace/vcfs-cli-alpine 2>/dev/null || true
 
 echo "[*] Setting up GUI init script via profile..."
 cat > "$MNT_DIR/root/start-gui.sh" << 'EOF'
@@ -81,11 +90,36 @@ mount -o remount,rw /
 echo "[*] VCFS Guest Initialization..."
 mkdir -p /payload
 mount -t vfat /dev/vdb /payload 2>/dev/null
+
+# Load kernel module
 insmod /payload/vcfs.ko >/dev/null 2>&1 || true
+
+# Install VCFS tools to PATH
+cp /payload/mkfs.vcfs /usr/bin/ 2>/dev/null || true
+cp /payload/vcfs /usr/bin/ 2>/dev/null || true
+
+# Mount the pre-formatted VCFS test disk (passed as third virtio drive)
+echo "[*] Mounting VCFS test filesystem..."
+mkdir -p /mnt/vcfs
+mkfs.vcfs /dev/vdc >/dev/null 2>&1
+mount -t vcfs /dev/vdc /mnt/vcfs
+
+# Create some sample files for demonstration
+echo "Hello World - this is VCFS!" > /mnt/vcfs/hello.txt
+echo "Updated content for version 1" > /mnt/vcfs/hello.txt
+echo "# VCFS Demo" > /mnt/vcfs/readme.md
+echo "This is a sample file on a VCFS filesystem." >> /mnt/vcfs/readme.md
 
 export XDG_RUNTIME_DIR=/tmp/xdg
 mkdir -p $XDG_RUNTIME_DIR
 chmod 0700 $XDG_RUNTIME_DIR
+
+# Create a wrapper script that launches the GUI with the mount point
+cat > /usr/bin/vcfs-gui-launch << 'WRAPPER'
+#!/bin/sh
+/payload/vcfs-gui /mnt/vcfs
+WRAPPER
+chmod +x /usr/bin/vcfs-gui-launch
 
 mkdir -p ~/.config
 cat > ~/.config/weston.ini << 'INI'
@@ -95,7 +129,7 @@ shell=desktop-shell.so
 idle-time=0
 
 [autolaunch]
-path=/payload/vcfs-gui
+path=/usr/bin/vcfs-gui-launch
 
 [launcher]
 icon=/usr/share/weston/icon_terminal.png
@@ -103,7 +137,7 @@ path=/usr/bin/weston-terminal
 
 [launcher]
 icon=/usr/share/icons/hicolor/256x256/apps/weston.png
-path=/payload/vcfs-gui
+path=/usr/bin/vcfs-gui-launch
 INI
 
 echo "[*] Waiting for seatd to be available..."
@@ -112,7 +146,6 @@ while [ ! -S /run/seatd.sock ]; do
 done
 
 echo "[*] Starting Weston and VCFS GUI..."
-# Force the environment variables directly onto the Weston execution process
 XDG_RUNTIME_DIR=/tmp/xdg WAYLAND_DISPLAY=wayland-1 weston > /tmp/weston.log 2>&1 &
 EOF
 chmod +x "$MNT_DIR/root/start-gui.sh"
@@ -135,6 +168,7 @@ rm "$MNT_DIR/etc/resolv.conf"
 rm -rf "$MNT_DIR/payload_src"
 rm -rf "$MNT_DIR/kernel_src"
 rm -rf "$MNT_DIR/daemon"
+rm -rf "$MNT_DIR/cli_src"
 umount "$MNT_DIR"
 
 echo "[*] Converting to qcow2 format..."

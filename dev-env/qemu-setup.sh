@@ -48,15 +48,16 @@ echo -e "\033[1;36m              VCFS AUTOMATED INTEGRATION TESTS               
 echo -e "\033[1;36m=================================================================\033[0m\n"
 
 cd /root
+FAIL_COUNT=0
 
 echo -n "[TEST] 1. Kernel Module Loading... "
-insmod vcfs.ko && echo -e "\033[1;32m[PASS]\033[0m" || { echo -e "\033[1;31m[FAIL]\033[0m"; exec /bin/sh; }
+insmod vcfs.ko && echo -e "\033[1;32m[PASS]\033[0m" || { echo -e "\033[1;31m[FAIL]\033[0m"; FAIL_COUNT=$((FAIL_COUNT+1)); }
 
 echo -n "[TEST] 2. Disk Formatting (128-byte Inode)... "
-mkfs.vcfs /dev/sda > /dev/null 2>&1 && echo -e "\033[1;32m[PASS]\033[0m" || { echo -e "\033[1;31m[FAIL]\033[0m"; exec /bin/sh; }
+mkfs.vcfs /dev/sda > /dev/null 2>&1 && echo -e "\033[1;32m[PASS]\033[0m" || { echo -e "\033[1;31m[FAIL]\033[0m"; FAIL_COUNT=$((FAIL_COUNT+1)); }
 
 echo -n "[TEST] 3. File System Mounting... "
-mount -t vcfs /dev/sda /mnt && echo -e "\033[1;32m[PASS]\033[0m" || { echo -e "\033[1;31m[FAIL]\033[0m"; exec /bin/sh; }
+mount -t vcfs /dev/sda /mnt && echo -e "\033[1;32m[PASS]\033[0m" || { echo -e "\033[1;31m[FAIL]\033[0m"; FAIL_COUNT=$((FAIL_COUNT+1)); }
 
 cd /mnt
 
@@ -64,35 +65,41 @@ echo -n "[TEST] 4. File Creation & Copy-on-Write Versioning... "
 echo "v0_data" > test.txt
 echo "v1_data" > test.txt
 echo "v2_data" > test.txt
-VCOUNT=$(vcfs status test.txt | tail -n 1 | awk '{print $NF}')
-if [ "$VCOUNT" = "3" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m ($VCOUNT versions found)"; fi
+VCOUNT=$(vcfs status test.txt 2>/dev/null | tail -n 1 | awk '{print $NF}')
+if [ "$VCOUNT" = "3" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m ($VCOUNT versions found)"; FAIL_COUNT=$((FAIL_COUNT+1)); fi
 
 echo -e "\033[1;36m[TEST] 5. Version Diff (v0 vs v1):\033[0m"
-vcfs diff test.txt 0 1 | grep -E '^\+|^\-' || true
+vcfs diff test.txt 0 1 2>/dev/null | grep -E '^\+|^\-' || true
 echo -e "\033[1;32m[PASS] Diff generated successfully.\033[0m"
 
 echo -n "[TEST] 6. Checkout to v0 (Block Swapping)... "
 vcfs checkout test.txt 0 > /dev/null 2>&1
 CONTENT=$(cat test.txt)
-if [ "$CONTENT" = "v0_data" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m (Content: $CONTENT)"; fi
+if [ "$CONTENT" = "v0_data" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m (Content: $CONTENT)"; FAIL_COUNT=$((FAIL_COUNT+1)); fi
 
 echo -n "[TEST] 7. Trash (Eviction Bypass) & Delete... "
 rm test.txt
-TRASH_CNT=$(vcfs trash --list | grep "test.txt" | wc -l)
-if [ "$TRASH_CNT" -ge 1 ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m"; fi
+TRASH_CNT=$(vcfs trash --list 2>/dev/null | grep "test.txt" | wc -l)
+if [ "$TRASH_CNT" -ge 1 ] 2>/dev/null; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m"; FAIL_COUNT=$((FAIL_COUNT+1)); fi
 
 echo -n "[TEST] 8. Restore from Trash (Relinking)... "
-INODE=$(vcfs trash --list | grep "test.txt" | awk '{print $1}')
+INODE=$(vcfs trash --list 2>/dev/null | grep "test.txt" | awk '{print $1}')
 vcfs restore $INODE > /dev/null 2>&1
-if [ -f "test.txt" ] && [ "$(cat test.txt)" = "v0_data" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m"; fi
+if [ -f "test.txt" ] && [ "$(cat test.txt)" = "v0_data" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m"; FAIL_COUNT=$((FAIL_COUNT+1)); fi
 
 echo -n "[TEST] 9. User-Space Daemon Execution... "
 vcfsd /mnt & > /dev/null 2>&1
 sleep 1
-if pidof vcfsd > /dev/null; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m"; fi
+if pidof vcfsd > /dev/null 2>&1; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m"; FAIL_COUNT=$((FAIL_COUNT+1)); fi
 killall vcfsd > /dev/null 2>&1 || true
 
-echo -e "\n\033[1;32m>>> ALL VCFS AUTOMATED TESTS COMPLETED SUCCESSFULLY! <<<\033[0m\n"
+echo ""
+if [ "$FAIL_COUNT" -eq 0 ]; then
+    echo -e "\033[1;32m>>> ALL 9 TESTS PASSED SUCCESSFULLY! <<<\033[0m"
+else
+    echo -e "\033[1;31m>>> $FAIL_COUNT TEST(S) FAILED <<<\033[0m"
+fi
+echo ""
 
 echo "Welcome to the VCFS Interactive Shell."
 echo "You can continue testing manually if you wish."

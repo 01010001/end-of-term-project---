@@ -5,6 +5,7 @@
 
 #include <fcntl.h>
 #if defined(__linux__)
+#include <endian.h>
 #include <linux/fs.h> /* BLKGETSIZE64 */
 #elif defined(__APPLE__)
 #include <libkern/OSByteOrder.h>
