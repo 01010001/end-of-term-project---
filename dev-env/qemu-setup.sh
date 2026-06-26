@@ -8,19 +8,19 @@ INITRAMFS_IMG=/tmp/initramfs.cpio.gz
 # ── 1. Compile VCFS Components ────────────────────────────────────────────────
 echo "[*] Compiling VCFS components..."
 
-if [ -d "/workspace/src-vcfs" ]; then
-    make -C /workspace/src-vcfs clean >/dev/null 2>&1 || true
-    make -C /workspace/src-vcfs >/dev/null
+if [ -d "/workspace/kernel-module" ]; then
+    make -C /workspace/kernel-module clean >/dev/null 2>&1 || true
+    make -C /workspace/kernel-module >/dev/null
 fi
 
-if [ -d "/workspace/vcfs-cli" ]; then
-    make -C /workspace/vcfs-cli clean >/dev/null 2>&1 || true
-    make -C /workspace/vcfs-cli >/dev/null
+if [ -d "/workspace/cli" ]; then
+    make -C /workspace/cli clean >/dev/null 2>&1 || true
+    make -C /workspace/cli >/dev/null
 fi
 
-if [ -d "/workspace/vcfs-daemon" ]; then
-    make -C /workspace/vcfs-daemon clean >/dev/null 2>&1 || true
-    make -C /workspace/vcfs-daemon >/dev/null
+if [ -d "/workspace/daemon" ]; then
+    make -C /workspace/daemon clean >/dev/null 2>&1 || true
+    make -C /workspace/daemon >/dev/null
 fi
 
 # ── 2. Build initramfs ────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ mkdir -p "$INITRAMFS_DIR"/{bin,dev,proc,sys,mnt,root,lib64,tmp}
 cp /usr/sbin/busybox "$INITRAMFS_DIR/bin/busybox"
 
 cd "$INITRAMFS_DIR/bin"
-for cmd in sh mount mkdir ls cat echo uname ln insmod rmmod lsmod dmesg poweroff clear sleep vi rm mv cp touch pwd grep tail head less more diff awk killall; do
+for cmd in sh mount mkdir ls cat echo uname ln insmod rmmod lsmod dmesg poweroff clear sleep vi rm mv cp touch pwd grep tail head less more diff awk killall wc pidof sed tr; do
     ln -sf busybox $cmd
 done
 
@@ -64,7 +64,7 @@ echo -n "[TEST] 4. File Creation & Copy-on-Write Versioning... "
 echo "v0_data" > test.txt
 echo "v1_data" > test.txt
 echo "v2_data" > test.txt
-VCOUNT=$(vcfs status test.txt | grep -o '[0-9]*' | tail -n 1)
+VCOUNT=$(vcfs status test.txt | tail -n 1 | awk '{print $NF}')
 if [ "$VCOUNT" = "3" ]; then echo -e "\033[1;32m[PASS]\033[0m"; else echo -e "\033[1;31m[FAIL]\033[0m ($VCOUNT versions found)"; fi
 
 echo -e "\033[1;36m[TEST] 5. Version Diff (v0 vs v1):\033[0m"
@@ -106,17 +106,17 @@ cp -a /lib64/ld-linux-x86-64.so.* "$INITRAMFS_DIR/lib64/" || true
 cp -a /lib64/libz.so.* "$INITRAMFS_DIR/lib64/" || true
 
 # Copy compiled VCFS modules and tools into the initramfs
-if [ -d "/workspace/src-vcfs" ]; then
-    cp /workspace/src-vcfs/vcfs.ko "$INITRAMFS_DIR/root/"
-    cp /workspace/src-vcfs/mkfs.vcfs "$INITRAMFS_DIR/bin/"
+if [ -d "/workspace/kernel-module" ]; then
+    cp /workspace/kernel-module/vcfs.ko "$INITRAMFS_DIR/root/"
+    cp /workspace/kernel-module/mkfs.vcfs "$INITRAMFS_DIR/bin/"
 fi
 
-if [ -d "/workspace/vcfs-cli" ]; then
-    cp /workspace/vcfs-cli/vcfs "$INITRAMFS_DIR/bin/"
+if [ -d "/workspace/cli" ]; then
+    cp /workspace/cli/vcfs "$INITRAMFS_DIR/bin/"
 fi
 
-if [ -d "/workspace/vcfs-daemon" ]; then
-    cp /workspace/vcfs-daemon/vcfsd "$INITRAMFS_DIR/bin/"
+if [ -d "/workspace/daemon" ]; then
+    cp /workspace/daemon/vcfsd "$INITRAMFS_DIR/bin/"
 fi
 
 # Pack the initramfs

@@ -126,6 +126,7 @@ void vcfs_kill_sb(struct super_block *sb);
 int vcfs_init_inode_cache(void);
 void vcfs_destroy_inode_cache(void);
 struct inode *vcfs_iget(struct super_block *sb, unsigned long ino);
+extern int vcfs_link_inode(struct inode *old_inode, struct inode *dir, struct dentry *dentry);
 
 /* dentry function */
 struct dentry *vcfs_mount(struct file_system_type *fs_type,

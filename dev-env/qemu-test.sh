@@ -5,12 +5,12 @@ MODE="${1:-cli}"
 KVER="${KERNEL_VERSION:-6.8.5-301.fc40.x86_64}"
 
 echo "[*] Compiling VCFS components..."
-make -C /workspace/src-vcfs clean >/dev/null 2>&1 || true
-make -C /workspace/src-vcfs >/dev/null
-make -C /workspace/vcfs-cli clean >/dev/null 2>&1 || true
-make -C /workspace/vcfs-cli >/dev/null
-make -C /workspace/vcfs-daemon clean >/dev/null 2>&1 || true
-make -C /workspace/vcfs-daemon >/dev/null
+make -C /workspace/kernel-module clean >/dev/null 2>&1 || true
+make -C /workspace/kernel-module >/dev/null
+make -C /workspace/cli clean >/dev/null 2>&1 || true
+make -C /workspace/cli >/dev/null
+make -C /workspace/daemon clean >/dev/null 2>&1 || true
+make -C /workspace/daemon >/dev/null
 
 if [ "$MODE" = "gui" ]; then
     # We build the GUI inside the Alpine chroot to avoid libc conflicts
@@ -45,10 +45,10 @@ EOF
     cp -a /lib64/ld-linux-x86-64.so.* "$INITRAMFS_DIR/lib64/" || true
     cp -a /lib64/libz.so.* "$INITRAMFS_DIR/lib64/" || true
 
-    cp /workspace/src-vcfs/vcfs.ko "$INITRAMFS_DIR/root/"
-    cp /workspace/src-vcfs/mkfs.vcfs "$INITRAMFS_DIR/bin/"
-    cp /workspace/vcfs-cli/vcfs "$INITRAMFS_DIR/bin/"
-    cp /workspace/vcfs-daemon/vcfsd "$INITRAMFS_DIR/bin/"
+    cp /workspace/kernel-module/vcfs.ko "$INITRAMFS_DIR/root/"
+    cp /workspace/kernel-module/mkfs.vcfs "$INITRAMFS_DIR/bin/"
+    cp /workspace/cli/vcfs "$INITRAMFS_DIR/bin/"
+    cp /workspace/daemon/vcfsd "$INITRAMFS_DIR/bin/"
 
     cd "$INITRAMFS_DIR"
     find . | cpio -o -H newc | gzip > "$INITRAMFS_IMG"
@@ -73,11 +73,11 @@ elif [ "$MODE" = "gui" ]; then
     dd if=/dev/zero of=/tmp/payload.img bs=1M count=20 2>/dev/null
     mkfs.vfat /tmp/payload.img >/dev/null
     mcopy -i /tmp/payload.img /workspace/vcfs-alpine.ko ::/vcfs.ko
-    mcopy -i /tmp/payload.img /workspace/vcfs-gui-alpine ::/vcfs-gui
+    mcopy -i /tmp/payload.img /workspace/gui-alpine ::/vcfs-gui
     
     echo "[*] Starting websockify (noVNC)..."
     killall websockify 2>/dev/null || true
-    websockify -D --web=/usr/share/novnc 6080 localhost:5900
+    websockify -D --web=/usr/share/novnc 0.0.0.0:6080 127.0.0.1:5900
 
     echo -e "\n\033[1;32m[*] Access the GUI from your host browser at: http://localhost:6080/vnc.html\033[0m\n"
     

@@ -110,7 +110,7 @@ release_bh:
     return ret;
 }
 
-#include "../vcfs-daemon/vcfs_ioctl.h"
+#include "../daemon/vcfs_ioctl.h"
 
 /* Forward declaration for functions defined in inode.c needed for trash restore */
 extern int vcfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry);

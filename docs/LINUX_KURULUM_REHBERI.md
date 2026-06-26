@@ -179,4 +179,4 @@ sudo mount -t vcfs /dev/sdb /mnt/vcfs_disk
 sudo chown -R $USER:$USER /mnt/vcfs_disk
 ```
 
-Artık VCFS, ana bilgisayarınızda bir USB bellek veya harici disk gibi natif olarak çalışmaya hazırdır!
+Artık VCFS, ana bilgisayarınızda bir USB bellek veya harici disk gibi native olarak çalışmaya hazırdır!

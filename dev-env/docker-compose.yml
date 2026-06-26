@@ -6,15 +6,14 @@ services:
         KERNEL_VERSION: "6.8.5-301.fc40.x86_64"
     image: kernel-dev:fc40
     volumes:
-      - ./src:/workspace/src
-      - ./test:/workspace/test
-      - ./src2-simplefs:/workspace/src2-simplefs
-      - ./src-vcfs:/workspace/src-vcfs
-      - ./vcfs-cli:/workspace/vcfs-cli
-      - ./vcfs-daemon:/workspace/vcfs-daemon
-      - ./vcfs-gui:/workspace/vcfs-gui
+      - ../tests:/workspace/tests
+      - ../kernel-module:/workspace/kernel-module
+      - ../cli:/workspace/cli
+      - ../daemon:/workspace/daemon
+      - ../gui:/workspace/gui
       - ./qemu-test.sh:/workspace/qemu-test.sh
       - ./build-alpine.sh:/workspace/build-alpine.sh
+      - ./qemu-setup.sh:/workspace/qemu-setup.sh
     ports:
       - "6080:6080"
     devices:

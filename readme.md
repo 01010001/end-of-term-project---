@@ -1,98 +1,110 @@
 # VCFS (Version Control File System)
 
-This repository contains a proof-of-concept Linux Kernel file system with file-level version control, an optimization daemon, a CLI tool, and a GTK-based GUI.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+![Kernel](https://img.shields.io/badge/kernel-%3E%3D5.15-orange.svg)
 
-## Docker Development Environment
+VCFS is a proof-of-concept Linux Kernel file system with built-in, transparent file-level version control. Inspired by Apple's Time Machine and Git, VCFS automatically tracks changes, offering a built-in trash mechanism and delta-compression for efficient storage.
 
-A full development environment is provided via Docker. This ensures a consistent environment for compiling the Linux Kernel module, the CLI, and the Daemon.
+---
+
+## 📁 Repository Structure
+
+- **`kernel-module/`**: The core VCFS Linux kernel driver and formatting tools (`mkfs.vcfs`).
+- **`daemon/`**: Background optimization service performing automatic Delta Compression (thinning).
+- **`cli/`**: The command-line interface for managing versions, restoring files, and inspecting history.
+- **`gui/`**: A native GTK3-based "Time Machine" application for visual version management.
+- **`dev-env/`**: Docker and QEMU scripts to provide a safe, isolated development and testing environment.
+- **`docs/`**: Additional documentation, including native Linux installation guides.
+- **`tests/`**: Integration and unit testing scripts.
+
+## 🚀 Quick Start (Isolated Development Environment)
+
+Developing a kernel module directly on your host machine can be dangerous. VCFS provides a full development environment using Docker and QEMU, ensuring a consistent and safe workspace without modifying your host system.
+
+### 1. Build and Enter the Environment
 
 ```bash
-# Build the Docker image
+cd dev-env
+# Build the isolated Docker image
 docker compose build
 
-# Run the Docker container
-docker compose run --rm kernel-dev bash
+# Enter the interactive shell inside the container
+docker compose run --rm --service-ports kernel-dev bash
 ```
 
-## Compilation and VM Execution
+### 2. Automated Compilation and Virtual Testing
 
-Inside the Docker container, you can use the provided script to automatically build all components (VCFS kernel module, CLI, and Daemon) and boot into a lightweight QEMU virtual machine for testing. **An automated test suite will run on boot to verify all functionalities.**
+Inside the container, run the setup script. This will automatically compile the kernel module, CLI, and Daemon, build a temporary `initramfs`, and boot into a lightweight QEMU virtual machine.
 
 ```bash
-# This will build the tools and start the VM
+# This will build the tools, run automated tests, and start the VM
 /workspace/qemu-setup.sh
 ```
 
-## Running the Components in QEMU
+### 3. Manual Testing in QEMU
 
-Once the QEMU VM boots, you will be dropped into a root shell. 
-The compiled components are already placed directly into your PATH (`/bin`) and the `/root` directory inside the RAM disk.
-
-### 1. Mounting the File System
-
-First, insert the kernel module, format the test disk, and mount the file system:
+Once QEMU boots up, you will be dropped into a root shell with all VCFS tools available in your `PATH`.
 
 ```bash
 cd /root
 
-# Insert the VCFS kernel module
+# 1. Insert the VCFS kernel module
 insmod vcfs.ko
 
-# Format the test disk with VCFS (QEMU maps it to /dev/sda)
+# 2. Format the virtual test disk
 mkfs.vcfs /dev/sda
 
-# Mount the filesystem (without loop, as it is a block device)
+# 3. Mount the filesystem
 mount -t vcfs /dev/sda /mnt
 cd /mnt
-```
 
-### 2. Starting the Optimization Daemon
-
-The User-Space Daemon periodically scans the file system and performs Delta Compression (Thinning) to save disk space.
-
-```bash
-# Start the daemon in the background
+# 4. Start the optimization daemon
 vcfsd /mnt &
-
-# Check logs (if necessary)
-dmesg
 ```
 
-### 3. Using the CLI
+## 🛠️ Usage Examples (CLI)
 
-You can use the CLI tool to manage versions and the trash mechanism.
+The `vcfs` CLI tool allows you to interact with the file system's versioning capabilities directly:
 
 ```bash
-# Check version status of a file
-vcfs status file.txt
+# View the version history of a file
+vcfs log my_document.txt
 
-# View version history (includes file size and active version indicator)
-vcfs log file.txt
+# Compare changes between two versions
+vcfs diff my_document.txt 0 1
 
-# Compare two versions of a file
-vcfs diff file.txt 0 1
+# Revert a file back to a specific version
+vcfs checkout my_document.txt <version_id>
 
-# Checkout a previous version
-vcfs checkout file.txt <version_id>
-
-# List deleted files in the trash bin
+# List accidentally deleted files
 vcfs trash --list
 
-# Restore a deleted file from trash (Using the Inode Number from the list)
+# Restore a deleted file (using its inode number)
 vcfs restore <inode_no>
-
-# Permanently purge the trash bin
-vcfs trash --clean
 ```
 
-### 4. Running the Native GUI
+## 🖥️ Graphical Interface (GUI)
 
-The GUI is written in C and GTK3 to provide a zero-overhead native application. Because QEMU is running without an X server (nographic mode), the GUI is intended to be built and run on a full Linux Desktop environment.
+VCFS includes a native C/GTK3 application ("Time Machine") for users who prefer visual interaction.
 
-To test the GUI on a Linux Desktop with GTK3 installed:
+**Option 1: Testing inside the Docker Environment (noVNC)**
+You don't need a Linux desktop to test the GUI! The development environment includes a script that builds a complete Alpine Linux image with Wayland, runs the GUI, and streams it to your browser.
 
+Inside the Docker container, simply run:
 ```bash
-cd dev-env/vcfs-gui
+/workspace/qemu-test.sh gui
+```
+Then, open your web browser and go to `http://localhost:6080/vnc.html` to interact with the GUI visually.
+
+**Option 2: Running Natively on a Linux Desktop**
+If you are on a full Linux desktop environment with GTK3 installed, you can compile and run it natively:
+```bash
+cd gui
 make
 ./vcfs-gui
 ```
+
+## 📚 Documentation
+
+For instructions on how to install and run VCFS natively on your own Linux distribution (like Fedora or Ubuntu) rather than inside Docker/QEMU, please refer to the [Native Linux Installation Guide](docs/LINUX_KURULUM_REHBERI.md).

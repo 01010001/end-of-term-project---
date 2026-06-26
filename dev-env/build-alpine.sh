@@ -44,9 +44,9 @@ mkdir -p "$MNT_DIR/etc/mkinitfs"
 echo 'features="ata base ide scsi usb virtio ext4"' > "$MNT_DIR/etc/mkinitfs/mkinitfs.conf"
 
 # Copy workspace into chroot so we can compile GUI and Kernel module inside Alpine
-cp -r /workspace/vcfs-gui "$MNT_DIR/payload_src"
-cp -r /workspace/src-vcfs "$MNT_DIR/kernel_src"
-cp -r /workspace/vcfs-daemon "$MNT_DIR/vcfs-daemon"
+cp -r /workspace/gui "$MNT_DIR/payload_src"
+cp -r /workspace/kernel-module "$MNT_DIR/kernel_src"
+cp -r /workspace/daemon "$MNT_DIR/daemon"
 
 echo "[*] Installing packages and compiling GUI/Kernel in Alpine..."
 chroot "$MNT_DIR" /bin/sh -c "
@@ -69,7 +69,7 @@ chroot "$MNT_DIR" /bin/sh -c "
 "
 
 echo "[*] Saving musl-compiled GUI and Kernel binaries..."
-cp "$MNT_DIR/payload_src/vcfs-gui" /workspace/vcfs-gui-alpine
+cp "$MNT_DIR/payload_src/vcfs-gui" /workspace/gui-alpine
 cp "$MNT_DIR/kernel_src/vcfs.ko" /workspace/vcfs-alpine.ko
 
 echo "[*] Setting up GUI init script via profile..."
@@ -126,6 +126,7 @@ echo "[*] Cleaning up..."
 rm "$MNT_DIR/etc/resolv.conf"
 rm -rf "$MNT_DIR/payload_src"
 rm -rf "$MNT_DIR/kernel_src"
+rm -rf "$MNT_DIR/daemon"
 umount "$MNT_DIR"
 
 echo "[*] Converting to qcow2 format..."

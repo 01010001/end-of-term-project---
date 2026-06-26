@@ -8,7 +8,7 @@
 
 #include "bitmap.h"
 #include "vcfs.h"
-#include "../vcfs-daemon/vcfs_ioctl.h"
+#include "../daemon/vcfs_ioctl.h"
 
 /* Associate the provided 'buffer_head' parameter with the iblock-th block of
  * the file denoted by inode. Should the specified block be unallocated and the
@@ -122,14 +122,14 @@ static int vcfs_readpage(struct file *file, struct page *page)
  * sync is called or when memory is needed).
  */
 #if vcfs_AT_LEAST(6, 8, 0)
-static int vcfs_writepage(struct page *page, struct writeback_control *wbc)
+static int __attribute__((unused)) vcfs_writepage(struct page *page, struct writeback_control *wbc)
 {
     struct folio *folio = page_folio(page);
     return __block_write_full_folio(page->mapping->host, folio,
                                     vcfs_file_get_block, wbc);
 }
 #else
-static int vcfs_writepage(struct page *page, struct writeback_control *wbc)
+static int __attribute__((unused)) vcfs_writepage(struct page *page, struct writeback_control *wbc)
 {
     return block_write_full_page(page, vcfs_file_get_block, wbc);
 }
