@@ -51,7 +51,7 @@ cp -r /workspace/daemon "$MNT_DIR/daemon"
 echo "[*] Installing packages and compiling GUI/Kernel in Alpine..."
 chroot "$MNT_DIR" /bin/sh -c "
     apk update && \
-    apk add --no-cache openrc alpine-base linux-lts eudev mesa-dri-gallium weston weston-backend-drm weston-shell-desktop gtk+3.0 font-dejavu font-liberation gcc make pkgconf gtk+3.0-dev libc-dev agetty linux-lts-dev linux-headers gmp-dev mpc1-dev mpfr-dev python3 seatd && \
+    apk add --no-cache openrc alpine-base linux-lts eudev mesa-dri-gallium weston weston-backend-drm weston-shell-desktop weston-terminal gtk+3.0 font-dejavu font-liberation gcc make pkgconf gtk+3.0-dev libc-dev agetty linux-lts-dev linux-headers gmp-dev mpc1-dev mpfr-dev python3 seatd && \
     adduser root seat && \
     rc-update add devfs boot && \
     rc-update add udev sysinit && \
@@ -95,6 +95,14 @@ shell=desktop-shell.so
 idle-time=0
 
 [autolaunch]
+path=/payload/vcfs-gui
+
+[launcher]
+icon=/usr/share/weston/icon_terminal.png
+path=/usr/bin/weston-terminal
+
+[launcher]
+icon=/usr/share/icons/hicolor/256x256/apps/weston.png
 path=/payload/vcfs-gui
 INI
 
